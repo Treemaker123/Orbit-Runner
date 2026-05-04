@@ -6,6 +6,8 @@ const SHIELD_SECS    = 10;
 const SHARDS_NEEDED  = 3;
 const LANE_ANIM_SECS = 0.12;
 const LANE_COOLDOWN  = 0.18;
+const LANE_STEP_INCREASE = 1;
+const LANE_STEP_DECREASE = -1;
 
 class Player {
   constructor() {
@@ -38,8 +40,6 @@ class Player {
     this.touchDown = false;
     this.twoFingerTap = false;
 
-    this._tiltBeta = null;
-    this._prevTiltBeta = null;
   }
 
   initControls() {
@@ -75,9 +75,6 @@ class Player {
       }
     }, { passive: true });
 
-    window.addEventListener('deviceorientation', e => {
-      this._tiltBeta = e.beta;
-    }, { passive: true });
   }
 
   reset() {
@@ -152,16 +149,9 @@ class Player {
     let wantLeft = pressedLeft || this.touchLeft;
     let wantRight = pressedRight || this.touchRight;
 
-    if (this._tiltBeta !== null && this._prevTiltBeta !== null) {
-      const delta = this._tiltBeta - this._prevTiltBeta;
-      if (delta < -12) wantLeft = true;
-      if (delta > 12) wantRight = true;
-    }
-    this._prevTiltBeta = this._tiltBeta;
-
     if (this._laneCooldown <= 0) {
-      if (wantLeft) this.switchLane(-1);
-      else if (wantRight) this.switchLane(1);
+      if (wantLeft) this.switchLane(LANE_STEP_INCREASE);
+      else if (wantRight) this.switchLane(LANE_STEP_DECREASE);
     }
 
     const pressedJump =

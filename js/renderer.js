@@ -2,13 +2,13 @@ var TRACK_WIDTH = 240;
 var LANE_WIDTH  = 80;
 
 const TRACK_HALF_W = TRACK_WIDTH * 0.5;
-const CAMERA_BACK_DISTANCE = 220;
-const CAMERA_HEIGHT = 120;
-const CAMERA_FORWARD_OFFSET = 340;
+const CAMERA_BACK_DISTANCE = 140;
+const CAMERA_HEIGHT = 10;
+const CAMERA_FORWARD_OFFSET = 560;
 
-const HORIZON_FRAC = 0.48;
-const GROUND_FRAC = 0.9;
-const FOCAL = 540;
+const HORIZON_FRAC = 0.34;
+const GROUND_FRAC = 0.96;
+const FOCAL = 420;
 const MAX_DRAW_DIST = 3400;
 const STRIP_LEN = 120;
 
@@ -452,7 +452,7 @@ class Renderer {
     const scaleY = player.ducking ? scale * 0.55 : scale;
 
     ctx.save();
-    ctx.translate(playerPoint.sx, playerPoint.sy - 22 * scaleY);
+    ctx.translate(playerPoint.sx, playerPoint.sy - 10 * scaleY);
     ctx.scale(scale, scaleY);
 
     const H2 = 18, H1 = -18;

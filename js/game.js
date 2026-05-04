@@ -153,7 +153,7 @@ class Game {
     this.collectibles.update(dt, this.distance);
     this.collectibles.spawn(this.track, this.distance);
 
-    const hit = this.obstacles.checkCollision(this.player);
+    const hit = this.obstacles.checkCollision(this.player, this.distance);
     if (hit) {
       const died = this.player.takeDamage();
       if (died) {

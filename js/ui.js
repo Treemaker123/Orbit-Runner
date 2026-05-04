@@ -1,3 +1,6 @@
+const BUTTON_FEEDBACK_DURATION_MS = 850; // Short confirmation flash without blocking interaction.
+const REFILL_BUTTON_LABEL = '★ REFILL +5000';
+
 class UI {
   /**
    * @param {Economy}  economy
@@ -62,6 +65,9 @@ class UI {
       </div>
       <button class="btn btn-primary" id="btn-play">▶ PLAY  ( 500 ★ )</button>
       <div class="btn-row">
+        <button class="btn btn-gold" id="btn-refill">${REFILL_BUTTON_LABEL}</button>
+      </div>
+      <div class="btn-row">
         <button class="btn btn-secondary" id="btn-upgrades">⚡ UPGRADES</button>
         <button class="btn btn-secondary" id="btn-missions">📋 MISSIONS</button>
       </div>
@@ -92,6 +98,13 @@ class UI {
     // Wire buttons — innerHTML already parsed, querySelector works immediately
     el.querySelector('#btn-play').addEventListener('click', () => {
       if (this.onPlayClick) this.onPlayClick();
+    });
+    const refillBtn = el.querySelector('#btn-refill');
+    refillBtn.addEventListener('click', () => {
+      const wasRefilled = this.economy.refillToMinimum(5000);
+      this._refreshMenuBalance();
+      refillBtn.textContent = wasRefilled ? '★ REFILLED!' : '★ ALREADY FULL';
+      setTimeout(() => { refillBtn.textContent = REFILL_BUTTON_LABEL; }, BUTTON_FEEDBACK_DURATION_MS);
     });
     el.querySelector('#btn-upgrades').addEventListener('click', () => {
       this._refreshUpgradesModal();
