@@ -27,9 +27,15 @@ const LANE_WORLD_W   = 80;            // lateral spacing between lane centres
 const TRACK_HALF_W   = LANE_WORLD_W * 1.5;  // half the total track width
 
 // Camera / projection
-const HORIZON_FRAC   = 0.42;          // horizon line as fraction of canvas H
-const GROUND_FRAC    = 0.86;          // where the ground meets the camera (d=0)
-const FOCAL          = 320;           // perspective focal length
+//
+// HORIZON_FRAC and FOCAL together determine how "top-down" vs. how
+// "forward-facing" the view feels. A higher horizon (closer to the vertical
+// middle) plus a longer focal length yields a flatter, more forward-looking
+// camera — the player sees the track stretch into the distance instead of
+// looking down on it from above.
+const HORIZON_FRAC   = 0.55;          // horizon line as fraction of canvas H
+const GROUND_FRAC    = 0.88;          // where the ground meets the camera (d=0)
+const FOCAL          = 500;           // perspective focal length (longer = less fish-eye)
 const MAX_DRAW_DIST  = 3000;          // cull anything farther than this
 
 // Track strips (alternating colours along the road for a sense of motion)
@@ -676,10 +682,13 @@ class Renderer {
   // ── Player ─────────────────────────────────────────────────────────────────
 
   drawPlayer(ctx, player, W, H) {
-    // The player ship is camera-attached at a fixed forward distance so it
-    // always appears in the lower centre.  Lane offset, jump and duck still
-    // shift the ship around within that anchor.
-    const PLAYER_D = 60;            // forward distance of the ship from camera
+    // The player ship is camera-attached at the camera baseline (d = 0) so
+    // that the obstacle/collectible collision logic — which treats the
+    // player's world position as `track.scrollY` — lines up exactly with
+    // what the player sees. Previously the ship was drawn at d = 60, which
+    // meant obstacles registered hits ~60 world-px after they had visually
+    // passed under the ship ("invisible collisions").
+    const PLAYER_D = 0;             // forward distance of the ship from camera
     const lanePos  = this._playerLanePos(player);
     const xLateral = (lanePos - 1) * LANE_WORLD_W;
     const h        = player.jumping ? Math.sin(player.jumpTimer * Math.PI) * 80 : 0;
@@ -695,7 +704,7 @@ class Renderer {
     ctx.fill();
     ctx.restore();
 
-    const scale  = proj.scale * 1.6;
+    const scale  = proj.scale * 1.3;
     const scaleY = player.ducking ? scale * 0.55 : scale;
 
     ctx.save();
