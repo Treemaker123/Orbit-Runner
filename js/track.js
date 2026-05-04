@@ -91,11 +91,12 @@ class Track {
     if (Math.abs(dist) > TURN_ZONE_HALF) return 'notInZone';
 
     if (direction === turn.turnDirection) {
-      this._currentTurnHandled = true;
       // The world physically rotates 90° here. Snap the camera to the turn
       // point and consume the segment so that everything past the corner —
       // which was generated as the *next* segment of track — now becomes
-      // "straight ahead" along the new forward direction.
+      // "straight ahead" along the new forward direction. The next segment
+      // (now at the head of the queue) hasn't been handled yet, so the
+      // `_currentTurnHandled` flag stays false.
       this.scrollY = turn.turnY;
       this.segments.shift();
       this._currentTurnHandled = false;
