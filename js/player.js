@@ -8,6 +8,12 @@ const LANE_ANIM_SECS = 0.12;
 const LANE_COOLDOWN  = 0.18;
 const LANE_STEP_INCREASE = 1;
 const LANE_STEP_DECREASE = -1;
+// World-space distance the visible ship is rendered ahead of `player.position`.
+// The renderer clamps the ship to a fixed screen Y and shifts it upward, which
+// visually places it ~243 world units in front of the projection of
+// `player.position`. The collision/collection center is shifted by the same
+// amount so the hitbox sits on the visible ship instead of trailing behind it.
+const VISUAL_FORWARD_OFFSET = 243;
 
 class Player {
   constructor() {
@@ -260,14 +266,22 @@ class Player {
     return this.jumping ? Math.sin(this.jumpTimer * Math.PI) * 80 : 0;
   }
 
+  getHitboxCenter() {
+    return {
+      x: this.position.x + this.direction.x * VISUAL_FORWARD_OFFSET,
+      z: this.position.z + this.direction.z * VISUAL_FORWARD_OFFSET,
+    };
+  }
+
   getWorldHitbox() {
     const halfW = LANE_WIDTH * 0.28;
     const halfD = 18;
+    const center = this.getHitboxCenter();
     return {
-      minX: this.position.x - halfW,
-      maxX: this.position.x + halfW,
-      minZ: this.position.z - halfD,
-      maxZ: this.position.z + halfD,
+      minX: center.x - halfW,
+      maxX: center.x + halfW,
+      minZ: center.z - halfD,
+      maxZ: center.z + halfD,
     };
   }
 }

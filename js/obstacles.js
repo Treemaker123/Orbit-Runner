@@ -7,6 +7,9 @@ const MAX_OBSTACLE_SPACING = 480;
 const SPACING_DIFFICULTY_RATE = 0.25;
 const COLLISION_AHEAD_DISTANCE = 140;
 const COLLISION_BEHIND_DISTANCE = 2;
+// Mirror of the same constant in player.js. Kept in sync with that file
+// (matches the TRACK_WIDTH/LANE_WIDTH per-file duplication convention).
+const VISUAL_FORWARD_OFFSET = 243;
 
 class Obstacles {
   constructor() {
@@ -176,11 +179,17 @@ class Obstacles {
   checkCollision(player, playerDistance) {
     const playerBox = player.getWorldHitbox();
     const shouldFilterByDistance = Number.isFinite(playerDistance);
+    // The hitbox is shifted forward by VISUAL_FORWARD_OFFSET so it lines up
+    // with the visible ship; mirror that shift on the path-distance filter so
+    // we don't skip/deactivate obstacles that still overlap the hitbox.
+    const hitboxDistance = shouldFilterByDistance
+      ? playerDistance + VISUAL_FORWARD_OFFSET
+      : playerDistance;
 
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
       if (shouldFilterByDistance) {
-        const relativeDistance = obs.pathDistance - playerDistance;
+        const relativeDistance = obs.pathDistance - hitboxDistance;
         if (relativeDistance < -COLLISION_BEHIND_DISTANCE) {
           obs.active = false;
           continue;
