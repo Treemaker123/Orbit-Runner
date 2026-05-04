@@ -5,7 +5,8 @@ const LANE_COUNT = 3;
 const MIN_OBSTACLE_SPACING = 180;
 const MAX_OBSTACLE_SPACING = 480;
 const SPACING_DIFFICULTY_RATE = 0.25;
-const COLLISION_CHECK_DISTANCE = 140;
+const COLLISION_AHEAD_DISTANCE = 140;
+const COLLISION_BEHIND_DISTANCE = 28;
 
 class Obstacles {
   constructor() {
@@ -178,7 +179,14 @@ class Obstacles {
 
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
-      if (shouldFilterByDistance && Math.abs(obs.pathDistance - playerDistance) > COLLISION_CHECK_DISTANCE) continue;
+      if (shouldFilterByDistance) {
+        const relativeDistance = obs.pathDistance - playerDistance;
+        if (relativeDistance < -COLLISION_BEHIND_DISTANCE) {
+          obs.active = false;
+          continue;
+        }
+        if (relativeDistance > COLLISION_AHEAD_DISTANCE) continue;
+      }
       if (!this._overlap(playerBox, obs.bounds)) continue;
 
       switch (obs.type) {
