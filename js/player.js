@@ -38,8 +38,6 @@ class Player {
     this.touchDown = false;
     this.twoFingerTap = false;
 
-    this._tiltBeta = null;
-    this._prevTiltBeta = null;
   }
 
   initControls() {
@@ -75,9 +73,6 @@ class Player {
       }
     }, { passive: true });
 
-    window.addEventListener('deviceorientation', e => {
-      this._tiltBeta = e.beta;
-    }, { passive: true });
   }
 
   reset() {
