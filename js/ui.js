@@ -62,6 +62,9 @@ class UI {
       </div>
       <button class="btn btn-primary" id="btn-play">▶ PLAY  ( 500 ★ )</button>
       <div class="btn-row">
+        <button class="btn btn-gold" id="btn-refill">★ REFILL +5000</button>
+      </div>
+      <div class="btn-row">
         <button class="btn btn-secondary" id="btn-upgrades">⚡ UPGRADES</button>
         <button class="btn btn-secondary" id="btn-missions">📋 MISSIONS</button>
       </div>
@@ -92,6 +95,12 @@ class UI {
     // Wire buttons — innerHTML already parsed, querySelector works immediately
     el.querySelector('#btn-play').addEventListener('click', () => {
       if (this.onPlayClick) this.onPlayClick();
+    });
+    el.querySelector('#btn-refill').addEventListener('click', e => {
+      this.economy.refill(5000);
+      this._refreshMenuBalance();
+      e.target.textContent = '★ REFILLED!';
+      setTimeout(() => { e.target.textContent = '★ REFILL +5000'; }, 850);
     });
     el.querySelector('#btn-upgrades').addEventListener('click', () => {
       this._refreshUpgradesModal();

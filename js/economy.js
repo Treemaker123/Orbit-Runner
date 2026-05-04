@@ -37,4 +37,10 @@ class Economy {
     this.balance += Math.floor(amt);
     this.save();
   }
+
+  refill(amt) {
+    this.balance += Math.max(0, Math.floor(amt));
+    this.save();
+    return this.balance;
+  }
 }

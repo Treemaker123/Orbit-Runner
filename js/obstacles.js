@@ -171,11 +171,12 @@ class Obstacles {
     return a.minX <= b.maxX && a.maxX >= b.minX && a.minZ <= b.maxZ && a.maxZ >= b.minZ;
   }
 
-  checkCollision(player) {
+  checkCollision(player, playerDistance = null) {
     const playerBox = player.getWorldHitbox();
 
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
+      if (playerDistance !== null && Math.abs(obs.pathDistance - playerDistance) > 140) continue;
       if (!this._overlap(playerBox, obs.bounds)) continue;
 
       switch (obs.type) {

@@ -152,16 +152,9 @@ class Player {
     let wantLeft = pressedLeft || this.touchLeft;
     let wantRight = pressedRight || this.touchRight;
 
-    if (this._tiltBeta !== null && this._prevTiltBeta !== null) {
-      const delta = this._tiltBeta - this._prevTiltBeta;
-      if (delta < -12) wantLeft = true;
-      if (delta > 12) wantRight = true;
-    }
-    this._prevTiltBeta = this._tiltBeta;
-
     if (this._laneCooldown <= 0) {
-      if (wantLeft) this.switchLane(-1);
-      else if (wantRight) this.switchLane(1);
+      if (wantLeft) this.switchLane(1);
+      else if (wantRight) this.switchLane(-1);
     }
 
     const pressedJump =
