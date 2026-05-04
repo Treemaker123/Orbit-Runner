@@ -442,13 +442,14 @@ class Renderer {
       z: player.position.z,
     }, camera, W, H);
     if (!playerPoint) return;
+    const playerScreenY = Math.min(playerPoint.sy, H * 0.92);
 
     const shadow = this._projectWorld({ x: player.position.x, y: 0, z: player.position.z }, camera, W, H);
     if (shadow) {
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.beginPath();
-      ctx.ellipse(shadow.sx, shadow.sy + 4, 28, 8, 0, 0, Math.PI * 2);
+      ctx.ellipse(shadow.sx, Math.min(shadow.sy + 4, H * 0.95), 28, 8, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -457,7 +458,7 @@ class Renderer {
     const scaleY = player.ducking ? scale * 0.55 : scale;
 
     ctx.save();
-    ctx.translate(playerPoint.sx, playerPoint.sy - 10 * scaleY);
+    ctx.translate(playerPoint.sx, playerScreenY - 10 * scaleY);
     ctx.scale(scale, scaleY);
 
     const H2 = 18, H1 = -18;
