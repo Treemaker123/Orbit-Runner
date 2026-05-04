@@ -362,7 +362,7 @@ export class UI {
     );
 
     const slotsInfo = this._screens.preRun.querySelector('#pr-slots-info');
-    if (slotsInfo) slotsInfo.textContent = `Choose up to ${slots} upgrade${slots > 1 ? 's' : ''}`;
+    if (slotsInfo) slotsInfo.textContent = `Choose up to ${slots} upgrade${slots !== 1 ? 's' : ''}`;
 
     const list = this._screens.preRun.querySelector('#pr-upgrade-list');
     list.innerHTML = '';
