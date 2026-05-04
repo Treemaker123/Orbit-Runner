@@ -52,7 +52,7 @@ python3 -m http.server 8080
 
 - **Entry fee:** 500 STARS per run
 - **Revive:** 1000 STARS (1 per run)
-- **Refill:** Menu button adds +5000 STARS if you run out
+- **Refill:** Menu button restores balance to 5000 STARS if you run out
 - STARS are spent only on upgrades, cosmetics, and revives
 - Player starts with 5000 STARS (persisted via `localStorage`)
 

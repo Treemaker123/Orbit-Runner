@@ -38,9 +38,11 @@ class Economy {
     this.save();
   }
 
-  refill(amt) {
-    this.balance += Math.max(0, Math.floor(amt));
+  refillToMinimum(minBalance) {
+    const target = Math.max(0, Math.floor(minBalance));
+    if (this.balance >= target) return false;
+    this.balance = target;
     this.save();
-    return this.balance;
+    return true;
   }
 }

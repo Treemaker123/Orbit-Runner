@@ -97,9 +97,9 @@ class UI {
       if (this.onPlayClick) this.onPlayClick();
     });
     el.querySelector('#btn-refill').addEventListener('click', e => {
-      this.economy.refill(5000);
+      const wasRefilled = this.economy.refillToMinimum(5000);
       this._refreshMenuBalance();
-      e.target.textContent = '★ REFILLED!';
+      e.target.textContent = wasRefilled ? '★ REFILLED!' : '★ ALREADY FULL';
       setTimeout(() => { e.target.textContent = '★ REFILL +5000'; }, 850);
     });
     el.querySelector('#btn-upgrades').addEventListener('click', () => {
