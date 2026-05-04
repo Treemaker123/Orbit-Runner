@@ -16,10 +16,6 @@ const NEAR_CLIP = 20;
 const MAX_DRAW_DIST = 3400;
 const STRIP_LEN = 120;
 const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.92;
-const SHADOW_SCREEN_Y_CLAMP_RATIO = 0.95;
-const SHADOW_Y_OFFSET = 4;
-const SHADOW_ELLIPSE_RADIUS_X = 28;
-const SHADOW_ELLIPSE_RADIUS_Y = 8;
 
 class Renderer {
   constructor(canvas) {
@@ -448,24 +444,6 @@ class Renderer {
     }, camera, W, H);
     if (!playerPoint) return;
     const playerScreenY = Math.min(playerPoint.sy, H * PLAYER_SCREEN_Y_CLAMP_RATIO);
-
-    const shadow = this._projectWorld({ x: player.position.x, y: 0, z: player.position.z }, camera, W, H);
-    if (shadow) {
-      ctx.save();
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.beginPath();
-      ctx.ellipse(
-        shadow.sx,
-        Math.min(shadow.sy + SHADOW_Y_OFFSET, H * SHADOW_SCREEN_Y_CLAMP_RATIO),
-        SHADOW_ELLIPSE_RADIUS_X,
-        SHADOW_ELLIPSE_RADIUS_Y,
-        0,
-        0,
-        Math.PI * 2,
-      );
-      ctx.fill();
-      ctx.restore();
-    }
 
     const scale = playerPoint.scale * 1.3;
     const scaleY = player.ducking ? scale * 0.55 : scale;
