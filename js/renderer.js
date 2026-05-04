@@ -593,7 +593,7 @@ export class Renderer {
         ctx.fillStyle = '#00ffff';
         ctx.font      = '10px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`${t.toFixed(1)}s`, BX + 8, BY + 55); // inside the 62px-tall box
+        ctx.fillText(`${t.toFixed(1)}s`, BX + 8, BY + 55); // BY+55 = bottom third of the 62px-tall shield HUD box
       }
       ctx.restore();
     }

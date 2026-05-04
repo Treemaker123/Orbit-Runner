@@ -270,15 +270,13 @@ export class UI {
     `;
     el.appendChild(content);
 
-    setTimeout(() => {
-      el.querySelector('#pr-confirm').addEventListener('click', () => {
-        if (this.onPreRunConfirm) this.onPreRunConfirm(this._preRunSelected);
-      });
-      el.querySelector('#pr-cancel').addEventListener('click', () => {
-        this._hideAll();
-        this.showMenu(this._lastPB || 0, this.economy.getBalance());
-      });
-    }, 0);
+    el.querySelector('#pr-confirm').addEventListener('click', () => {
+      if (this.onPreRunConfirm) this.onPreRunConfirm(this._preRunSelected);
+    });
+    el.querySelector('#pr-cancel').addEventListener('click', () => {
+      this._hideAll();
+      this.showMenu(this._lastPB || 0, this.economy.getBalance());
+    });
     return el;
   }
 
@@ -302,17 +300,15 @@ export class UI {
     `;
     el.appendChild(content);
 
-    setTimeout(() => {
-      el.querySelector('#go-revive').addEventListener('click', () => {
-        if (this.onRevive) this.onRevive();
-      });
-      el.querySelector('#go-again').addEventListener('click', () => {
-        if (this.onPlayAgain) this.onPlayAgain();
-      });
-      el.querySelector('#go-menu').addEventListener('click', () => {
-        if (this.onQuitToMenu) this.onQuitToMenu();
-      });
-    }, 0);
+    el.querySelector('#go-revive').addEventListener('click', () => {
+      if (this.onRevive) this.onRevive();
+    });
+    el.querySelector('#go-again').addEventListener('click', () => {
+      if (this.onPlayAgain) this.onPlayAgain();
+    });
+    el.querySelector('#go-menu').addEventListener('click', () => {
+      if (this.onQuitToMenu) this.onQuitToMenu();
+    });
     return el;
   }
 
@@ -329,14 +325,12 @@ export class UI {
     `;
     el.appendChild(content);
 
-    setTimeout(() => {
-      el.querySelector('#pause-resume').addEventListener('click', () => {
-        if (this.onResume) this.onResume();
-      });
-      el.querySelector('#pause-menu').addEventListener('click', () => {
-        if (this.onQuitToMenu) this.onQuitToMenu();
-      });
-    }, 0);
+    el.querySelector('#pause-resume').addEventListener('click', () => {
+      if (this.onResume) this.onResume();
+    });
+    el.querySelector('#pause-menu').addEventListener('click', () => {
+      if (this.onQuitToMenu) this.onQuitToMenu();
+    });
     return el;
   }
 
