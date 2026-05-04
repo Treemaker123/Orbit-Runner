@@ -57,12 +57,13 @@ class Collectibles {
     const collected = [];
     const baseRadius = 26;
     const magnetRadius = baseRadius + magnetLevel * (LANE_WIDTH * 0.6);
+    const center = player.getHitboxCenter();
 
     for (const item of this.items) {
       if (!item.active || item.collected) continue;
 
-      const dx = item.x - player.position.x;
-      const dz = item.z - player.position.z;
+      const dx = item.x - center.x;
+      const dz = item.z - center.z;
       const dist2 = dx * dx + dz * dz;
 
       if (dist2 <= magnetRadius * magnetRadius) {
