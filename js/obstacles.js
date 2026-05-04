@@ -6,7 +6,7 @@ const MIN_OBSTACLE_SPACING    = 180;  // world-px; minimum gap between obstacles
 const MAX_OBSTACLE_SPACING    = 480;  // world-px; gap at zero speed
 const SPACING_DIFFICULTY_RATE = 0.25; // gap shrinks by this many px per px/s of speed
 
-export class Obstacles {
+class Obstacles {
   constructor() {
     this.obstacles  = [];
     this.nextSpawnY = 600; // leave a safe gap at run start

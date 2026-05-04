@@ -31,7 +31,7 @@ const GENERAL_DEFS = [
   { id: 'g_rich',    name: 'Rich Pilot',     desc: 'Accumulate 10 000 ★ at once',            type: 'stars',    target: 10000, reward: 500  },
 ];
 
-export class Missions {
+class Missions {
   constructor() {
     this.dailyDate = '';
     this.dailyMissions = [];

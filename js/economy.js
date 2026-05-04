@@ -1,4 +1,4 @@
-export class Economy {
+class Economy {
   constructor() {
     this.entryFee = 500;
     this.reviveCost = 1000;

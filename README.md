@@ -4,14 +4,18 @@ A browser-based, space-themed endless runner built with **vanilla JavaScript, HT
 
 ## How to Play
 
-Serve the project with any static HTTP server, then open it in a browser:
+**Just download and double-click `index.html`** — the game runs directly in any modern browser from the local file system. No server, no install, no build step.
+
+1. Click the green **Code** button on GitHub → **Download ZIP**.
+2. Unzip the folder anywhere.
+3. Double-click `index.html`.
+
+Optionally, you can also serve it over HTTP if you prefer:
 
 ```bash
 python3 -m http.server 8080
 # then visit http://localhost:8080/
 ```
-
-> **Note:** The game uses ES modules, so opening `index.html` directly via `file://` will not work. It must be served over HTTP.
 
 ## Controls
 

@@ -7,7 +7,7 @@ const SHARDS_NEEDED  = 3;
 const LANE_ANIM_SECS = 0.12;
 const LANE_COOLDOWN  = 0.18;
 
-export class Player {
+class Player {
   constructor() {
     this.lane           = 1;
     this.jumping        = false;

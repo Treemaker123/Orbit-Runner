@@ -1,20 +1,14 @@
-import { Renderer }     from './renderer.js';
-import { UI }           from './ui.js';
-import { Player }       from './player.js';
-import { Track }        from './track.js';
-import { Obstacles }    from './obstacles.js';
-import { Collectibles } from './collectibles.js';
 
 const BASE_SPEED      = 220;
 const SPEED_INCREMENT = 8;    // px/s per second of gameplay
 const MAX_SPEED       = 700;
 
-export class Game {
+class Game {
   /**
-   * @param {HTMLCanvasElement}                   canvas
-   * @param {import('./economy.js').Economy}      economy
-   * @param {import('./missions.js').Missions}    missions
-   * @param {import('./upgrades.js').Upgrades}    upgrades
+   * @param {HTMLCanvasElement} canvas
+   * @param {Economy}           economy
+   * @param {Missions}          missions
+   * @param {Upgrades}          upgrades
    */
   constructor(canvas, economy, missions, upgrades) {
     this.canvas   = canvas;

@@ -1,4 +1,4 @@
-export const UPGRADE_DEFS = [
+const UPGRADE_DEFS = [
   {
     id: 'magnet',
     name: 'Magnet',
@@ -43,7 +43,7 @@ export const UPGRADE_DEFS = [
   },
 ];
 
-export class Upgrades {
+class Upgrades {
   constructor() {
     this.levels = {};
     this.slots = 1;

@@ -1,8 +1,8 @@
-export class UI {
+class UI {
   /**
-   * @param {import('./economy.js').Economy}  economy
-   * @param {import('./upgrades.js').Upgrades} upgrades
-   * @param {import('./missions.js').Missions} missions
+   * @param {Economy}  economy
+   * @param {Upgrades} upgrades
+   * @param {Missions} missions
    */
   constructor(economy, upgrades, missions) {
     this.economy  = economy;

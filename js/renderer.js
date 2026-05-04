@@ -1,7 +1,7 @@
 const TRACK_WIDTH = 240;
 const LANE_WIDTH  = 80;
 
-export class Renderer {
+class Renderer {
   constructor(canvas) {
     this.canvas  = canvas;
     this.ctx     = canvas.getContext('2d');

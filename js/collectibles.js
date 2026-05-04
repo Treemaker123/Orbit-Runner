@@ -2,7 +2,7 @@ const LANE_WIDTH  = 80;
 const COLLECT_Y   = 44; // ±worldY pixels for collection
 const PULSE_SPEED = 3.2;
 
-export class Collectibles {
+class Collectibles {
   constructor() {
     this.items      = [];
     this.nextSpawnY = 200;

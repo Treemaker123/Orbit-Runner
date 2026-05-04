@@ -3,7 +3,7 @@ const SEGMENT_MAX_LEN = 2400;
 const TURN_ZONE_HALF  = 90; // radius of the valid-turn window (±90 world-px around the turn point)
 const TURN_WARN_DIST  = 600;
 
-export class Track {
+class Track {
   constructor() {
     this.segments = [];
     this.scrollY  = 0;
