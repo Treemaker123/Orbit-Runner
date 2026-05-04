@@ -335,10 +335,8 @@ export class Game {
   }
 
   // ══════════════════════════════════════════════════════
-const MAX_FRAME_TIME = 0.05; // cap dt to 50 ms to prevent large jumps when tab is backgrounded
-  // ══════════════════════════════════════════════════════
-
   _loop(ts) {
+    const MAX_FRAME_TIME = 0.05; // cap dt to 50 ms to prevent large jumps when tab is backgrounded
     const dt     = this._lastTs === 0 ? 0 : Math.min((ts - this._lastTs) / 1000, MAX_FRAME_TIME);
     this._lastTs = ts;
 
