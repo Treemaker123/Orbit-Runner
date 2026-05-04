@@ -119,8 +119,16 @@ class Player {
     this._laneAnimT     = Math.max(0, this._laneAnimT - dt / LANE_ANIM_SECS);
 
     // ── Lane switching ─────────────────────────────────────
-    let wantLeft  = this._keys['KeyA'] || this._keys['ArrowLeft']  || this.touchLeft;
-    let wantRight = this._keys['KeyD'] || this._keys['ArrowRight'] || this.touchRight;
+    // Edge-detect keys (key just pressed this frame) so that holding A/D
+    // doesn't cause repeated/"random" lane switches every cooldown tick.
+    // Touch flags are already single-frame events.
+    const pressedLeft  = (this._keys['KeyA']     && !this._prevKeys['KeyA'])     ||
+                         (this._keys['ArrowLeft'] && !this._prevKeys['ArrowLeft']);
+    const pressedRight = (this._keys['KeyD']      && !this._prevKeys['KeyD'])      ||
+                         (this._keys['ArrowRight'] && !this._prevKeys['ArrowRight']);
+
+    let wantLeft  = pressedLeft  || this.touchLeft;
+    let wantRight = pressedRight || this.touchRight;
 
     // Tilt
     if (this._tiltBeta !== null && this._prevTiltBeta !== null) {
@@ -136,15 +144,23 @@ class Player {
     }
 
     // ── Jump ───────────────────────────────────────────────
-    if ((this._keys['KeyW'] || this._keys['ArrowUp'] || this.touchUp) &&
-        !this.jumping && !this.ducking) {
+    // Edge-detect jump key as well so a held key only triggers one jump.
+    const pressedJump = (this._keys['KeyW']    && !this._prevKeys['KeyW'])    ||
+                        (this._keys['ArrowUp'] && !this._prevKeys['ArrowUp']);
+    if ((pressedJump || this.touchUp) && !this.jumping && !this.ducking) {
       this.jump();
     }
 
     // ── Duck ───────────────────────────────────────────────
-    if ((this._keys['KeyS'] || this._keys['ArrowDown'] || this.touchDown) && !this.jumping) {
+    // Edge-detect duck so a held key doesn't perpetually restart the duck timer.
+    const pressedDuck = (this._keys['KeyS']      && !this._prevKeys['KeyS'])      ||
+                        (this._keys['ArrowDown'] && !this._prevKeys['ArrowDown']);
+    if ((pressedDuck || this.touchDown) && !this.jumping && !this.ducking) {
       this.duck();
     }
+
+    // Snapshot keys for next-frame edge detection (after consuming this frame).
+    this._prevKeys = Object.assign({}, this._keys);
 
     // Consume single-frame touch flags
     this.touchLeft     = false;
