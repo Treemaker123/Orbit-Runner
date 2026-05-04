@@ -6,6 +6,8 @@ const SHIELD_SECS    = 10;
 const SHARDS_NEEDED  = 3;
 const LANE_ANIM_SECS = 0.12;
 const LANE_COOLDOWN  = 0.18;
+const LANE_STEP_LEFT  = 1;
+const LANE_STEP_RIGHT = -1;
 
 class Player {
   constructor() {
@@ -148,8 +150,8 @@ class Player {
     let wantRight = pressedRight || this.touchRight;
 
     if (this._laneCooldown <= 0) {
-      if (wantLeft) this.switchLane(1);
-      else if (wantRight) this.switchLane(-1);
+      if (wantLeft) this.switchLane(LANE_STEP_LEFT);
+      else if (wantRight) this.switchLane(LANE_STEP_RIGHT);
     }
 
     const pressedJump =
