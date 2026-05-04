@@ -334,8 +334,11 @@ class Renderer {
     const w = LANE_WIDTH * proj.scale * 1.1;
     const h = 90 * proj.scale;
     if (w < 1 || h < 1) return;
-    ctx.fillStyle = color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
     ctx.fillRect(proj.sx - w * 0.5, proj.sy - h, w, h);
+    ctx.restore();
   }
 
   _drawWormhole(ctx, proj, obs) {

@@ -38,6 +38,16 @@ class Obstacles {
     };
   }
 
+  _laneBounds(center, dir, lane, halfForward) {
+    const perp = { x: -dir.z, z: dir.x };
+    const laneCenter = lane * LANE_WIDTH;
+    const lanePoint = {
+      x: center.x + perp.x * laneCenter,
+      z: center.z + perp.z * laneCenter,
+    };
+    return this._boundsFrom(lanePoint, dir, halfForward, LANE_WIDTH * 0.5);
+  }
+
   _create(type, sample, lane) {
     const center = sample.position;
     const dir = sample.direction;
@@ -82,6 +92,7 @@ class Obstacles {
           direction: dir,
           active: true,
           bounds: this._boundsFrom(center, dir, 22, TRACK_WIDTH * 0.5),
+          gapBounds: this._laneBounds(center, dir, gapLane, 22),
         };
       }
       case 'gravityZone': {
@@ -175,7 +186,7 @@ class Obstacles {
           obs.active = false;
           return obs;
         case 'tunnel':
-          if (!player.ducking && player.lane !== obs.gapLane) {
+          if (!player.ducking && !this._overlap(playerBox, obs.gapBounds)) {
             obs.active = false;
             return obs;
           }
@@ -193,7 +204,6 @@ class Obstacles {
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
       if (obs.type !== 'gravityZone' && obs.type !== 'zeroGZone') continue;
-      if (obs.lane !== null && obs.lane !== player.lane) continue;
       if (!this._overlap(playerBox, obs.bounds)) continue;
       return obs.type === 'gravityZone' ? 'gravity' : 'zeroG';
     }

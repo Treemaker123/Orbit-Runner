@@ -212,8 +212,15 @@ class Player {
   }
 
   applyTurn(newDirection, turnPoint) {
-    this.center.x = turnPoint.x;
-    this.center.z = turnPoint.z;
+    const oldDir = { x: this.direction.x, z: this.direction.z };
+    const fromTurn = {
+      x: this.center.x - turnPoint.x,
+      z: this.center.z - turnPoint.z,
+    };
+    const overshoot = Math.max(0, fromTurn.x * oldDir.x + fromTurn.z * oldDir.z);
+
+    this.center.x = turnPoint.x + newDirection.x * overshoot;
+    this.center.z = turnPoint.z + newDirection.z * overshoot;
     this.direction = { x: newDirection.x, z: newDirection.z };
     this._syncWorldPosition();
   }
