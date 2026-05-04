@@ -1,3 +1,5 @@
+const BUTTON_FEEDBACK_DURATION_MS = 850;
+
 class UI {
   /**
    * @param {Economy}  economy
@@ -96,11 +98,12 @@ class UI {
     el.querySelector('#btn-play').addEventListener('click', () => {
       if (this.onPlayClick) this.onPlayClick();
     });
-    el.querySelector('#btn-refill').addEventListener('click', e => {
+    const refillBtn = el.querySelector('#btn-refill');
+    refillBtn.addEventListener('click', () => {
       const wasRefilled = this.economy.refillToMinimum(5000);
       this._refreshMenuBalance();
-      e.target.textContent = wasRefilled ? '★ REFILLED!' : '★ ALREADY FULL';
-      setTimeout(() => { e.target.textContent = '★ REFILL +5000'; }, 850);
+      refillBtn.textContent = wasRefilled ? '★ REFILLED!' : '★ ALREADY FULL';
+      setTimeout(() => { refillBtn.textContent = '★ REFILL +5000'; }, BUTTON_FEEDBACK_DURATION_MS);
     });
     el.querySelector('#btn-upgrades').addEventListener('click', () => {
       this._refreshUpgradesModal();
