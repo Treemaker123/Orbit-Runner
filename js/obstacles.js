@@ -9,7 +9,7 @@ const COLLISION_AHEAD_DISTANCE = 140;
 const COLLISION_BEHIND_DISTANCE = 2;
 // Mirror of the same constant in player.js. Kept in sync with that file
 // (matches the TRACK_WIDTH/LANE_WIDTH per-file duplication convention).
-const VISUAL_FORWARD_OFFSET = 243;
+var VISUAL_FORWARD_OFFSET = 243;
 
 class Obstacles {
   constructor() {

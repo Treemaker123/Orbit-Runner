@@ -13,7 +13,7 @@ const LANE_STEP_DECREASE = -1;
 // visually places it ~243 world units in front of the projection of
 // `player.position`. The collision/collection center is shifted by the same
 // amount so the hitbox sits on the visible ship instead of trailing behind it.
-const VISUAL_FORWARD_OFFSET = 243;
+var VISUAL_FORWARD_OFFSET = 243;
 
 class Player {
   constructor() {
