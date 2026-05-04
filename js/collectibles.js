@@ -1,4 +1,4 @@
-const LANE_WIDTH  = 80;
+var LANE_WIDTH  = 80;
 const COLLECT_Y   = 44; // ±worldY pixels for collection
 const PULSE_SPEED = 3.2;
 
