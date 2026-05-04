@@ -152,10 +152,10 @@ class Renderer {
   drawTrack(ctx, track, playerDistance, camera, W, H) {
     const phase = (this._time * 220) % STRIP_LEN;
 
-    let start = MAX_DRAW_DIST;
-    while (start >= -phase) {
-      const d0 = Math.max(0, start);
-      const d1 = Math.max(0, start + STRIP_LEN);
+    let relativeDistance = MAX_DRAW_DIST;
+    while (relativeDistance >= -phase) {
+      const d0 = Math.max(0, relativeDistance);
+      const d1 = Math.max(0, relativeDistance + STRIP_LEN);
       const abs0 = playerDistance + d0;
       const abs1 = playerDistance + d1;
 
@@ -184,7 +184,7 @@ class Renderer {
         ctx.fill();
       }
 
-      start -= STRIP_LEN;
+      relativeDistance -= STRIP_LEN;
     }
 
     this._drawLaneDivider(ctx, track, playerDistance, camera, W, H, -LANE_WIDTH * 0.5);
@@ -320,6 +320,8 @@ class Renderer {
       if (!pBL || !pBR || !pTL || !pTR) continue;
 
       ctx.fillStyle = 'rgba(60,0,110,0.82)';
+      ctx.shadowColor = '#8b5cf6';
+      ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.moveTo(pBL.sx, pBL.sy);
       ctx.lineTo(pBR.sx, pBR.sy);
@@ -327,6 +329,7 @@ class Renderer {
       ctx.lineTo(pTL.sx, pTL.sy);
       ctx.closePath();
       ctx.fill();
+      ctx.shadowBlur = 0;
     }
   }
 

@@ -217,6 +217,8 @@ class Player {
       x: this.center.x - turnPoint.x,
       z: this.center.z - turnPoint.z,
     };
+    // Project displacement onto pre-turn forward direction to keep any forward
+    // overshoot when rotating direction at the corner.
     const overshoot = Math.max(0, fromTurn.x * oldDir.x + fromTurn.z * oldDir.z);
 
     this.center.x = turnPoint.x + newDirection.x * overshoot;

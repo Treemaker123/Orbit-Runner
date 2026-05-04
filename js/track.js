@@ -1,7 +1,7 @@
 const SEGMENT_MIN_LEN = 1200;
 const SEGMENT_MAX_LEN = 2400;
-const TURN_ZONE_AHEAD = 90;
-const TURN_ZONE_BEHIND = 140;
+const TURN_ZONE_AHEAD_DISTANCE = 90;
+const TURN_ZONE_BEHIND_DISTANCE = 140;
 const TURN_WARN_DIST = 1800;
 
 class Track {
@@ -92,8 +92,8 @@ class Track {
     const forwardDist = this._dot(toTurn, seg.direction);
     const lateralDist = Math.abs(this._dot(toTurn, this._perp(seg.direction)));
     const inZone =
-      forwardDist <= TURN_ZONE_AHEAD &&
-      forwardDist >= -TURN_ZONE_BEHIND &&
+      forwardDist <= TURN_ZONE_AHEAD_DISTANCE &&
+      forwardDist >= -TURN_ZONE_BEHIND_DISTANCE &&
       lateralDist <= TRACK_WIDTH * 0.8;
 
     return {
@@ -110,7 +110,7 @@ class Track {
   isTurnMissed(player) {
     const turn = this.getTurnState(player);
     if (!turn) return false;
-    return turn.distance < -TURN_ZONE_BEHIND;
+    return turn.distance < -TURN_ZONE_BEHIND_DISTANCE;
   }
 
   attemptTurn(direction, player) {
@@ -130,7 +130,7 @@ class Track {
   getTurnWarning(player) {
     const turn = this.getTurnState(player);
     if (!turn) return null;
-    if (turn.distance > TURN_WARN_DIST || turn.distance < -TURN_ZONE_BEHIND) return null;
+    if (turn.distance > TURN_WARN_DIST || turn.distance < -TURN_ZONE_BEHIND_DISTANCE) return null;
 
     return {
       direction: turn.direction,

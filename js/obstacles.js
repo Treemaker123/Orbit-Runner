@@ -1,5 +1,6 @@
 var TRACK_WIDTH = 240;
 var LANE_WIDTH  = 80;
+const LANE_COUNT = 3;
 
 const MIN_OBSTACLE_SPACING = 180;
 const MAX_OBSTACLE_SPACING = 480;
@@ -55,13 +56,16 @@ class Obstacles {
     switch (type) {
       case 'asteroid': {
         const verts = Array.from({ length: 7 }, () => 0.78 + Math.random() * 0.22);
+        const localDistance =
+          (sample.center.x - sample.segment.position.x) * sample.segment.direction.x +
+          (sample.center.z - sample.segment.position.z) * sample.segment.direction.z;
         return {
           type,
           lane,
           x: center.x,
           z: center.z,
           direction: dir,
-          pathDistance: sample.segment.startDistance + Math.max(0, sample.center.x - sample.segment.position.x) + Math.max(0, sample.center.z - sample.segment.position.z),
+          pathDistance: sample.segment.startDistance + localDistance,
           radius: 22,
           verts,
           active: true,
@@ -82,7 +86,7 @@ class Obstacles {
         };
       }
       case 'tunnel': {
-        const gapLane = Math.floor(Math.random() * 3) - 1;
+        const gapLane = Math.floor(Math.random() * LANE_COUNT) - 1;
         return {
           type,
           lane: null,
@@ -141,7 +145,7 @@ class Obstacles {
 
     while (this.nextSpawnDistance < aheadDistance) {
       const type = this._pickType();
-      const lane = Math.floor(Math.random() * 3) - 1;
+      const lane = Math.floor(Math.random() * LANE_COUNT) - 1;
       const laneOffset = lane * LANE_WIDTH;
       const sample = track.sampleByDistance(this.nextSpawnDistance, laneOffset);
       const obstacle = this._create(type, sample, lane);
