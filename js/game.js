@@ -1,82 +1,58 @@
-
 const BASE_SPEED      = 220;
-const SPEED_INCREMENT = 8;    // px/s per second of gameplay
+const SPEED_INCREMENT = 8;
 const MAX_SPEED       = 700;
 
 class Game {
-  /**
-   * @param {HTMLCanvasElement} canvas
-   * @param {Economy}           economy
-   * @param {Missions}          missions
-   * @param {Upgrades}          upgrades
-   */
   constructor(canvas, economy, missions, upgrades) {
-    this.canvas   = canvas;
-    this.economy  = economy;
+    this.canvas = canvas;
+    this.economy = economy;
     this.missions = missions;
     this.upgrades = upgrades;
 
-    // State machine
-    this.state = 'menu';   // menu | preRun | running | paused | gameOver
+    this.state = 'menu';
 
-    // Run state
-    this.speed           = BASE_SPEED;
-    this.score           = 0;
-    this.personalBest    = 0;
-    this.runTime         = 0;
-    this.coresCollected  = 0;
-    this.turnsCompleted  = 0;
+    this.speed = BASE_SPEED;
+    this.score = 0;
+    this.personalBest = 0;
+    this.runTime = 0;
+    this.distance = 0;
+    this.coresCollected = 0;
+    this.turnsCompleted = 0;
     this.maxSpeedReached = false;
-    this.slowdownTimer   = 0;
+    this.slowdownTimer = 0;
 
-    // Flash effects
-    this.effects       = [];
-
+    this.effects = [];
     this._lastTs = 0;
   }
 
-  // ══════════════════════════════════════════════════════
-  //  Init
-  // ══════════════════════════════════════════════════════
-
   init() {
-    this.renderer    = new Renderer(this.canvas);
-    this.player      = new Player();
-    this.track       = new Track();
-    this.obstacles   = new Obstacles();
-    this.collectibles= new Collectibles();
+    this.renderer = new Renderer(this.canvas);
+    this.player = new Player();
+    this.track = new Track();
+    this.obstacles = new Obstacles();
+    this.collectibles = new Collectibles();
 
     this.player.initControls();
 
     this.ui = new UI(this.economy, this.upgrades, this.missions);
     this._setupUICallbacks();
 
-    // Load personal best
     try {
       const pb = localStorage.getItem('orbit_best_score');
       if (pb) this.personalBest = parseInt(pb, 10) || 0;
     } catch (_) {}
 
-    // Keyboard: turn controls + pause (handled here, not in Player)
     window.addEventListener('keydown', e => {
-      if (e.code === 'KeyQ')               this._handleTurn('left');
-      if (e.code === 'KeyE')               this._handleTurn('right');
+      if (e.code === 'KeyQ') this._handleTurn('left');
+      if (e.code === 'KeyE') this._handleTurn('right');
       if (e.code === 'KeyP' || e.code === 'Escape') this._togglePause();
     });
 
-    // Canvas resize
     window.addEventListener('resize', () => this.renderer.resize());
 
-    // Show initial menu
     this.ui.showMenu(this.personalBest, this.economy.getBalance());
-
-    // Start loop
     requestAnimationFrame(ts => this._loop(ts));
   }
-
-  // ══════════════════════════════════════════════════════
-  //  UI callbacks
-  // ══════════════════════════════════════════════════════
 
   _setupUICallbacks() {
     this.ui.onPlayClick = () => {
@@ -85,7 +61,7 @@ class Game {
         return;
       }
       const allDefs = this.upgrades.getUpgradeDefs();
-      const all     = allDefs.map(def => ({ ...def, level: this.upgrades.getLevel(def.id) }));
+      const all = allDefs.map(def => ({ ...def, level: this.upgrades.getLevel(def.id) }));
       this.ui.showPreRun(all, this.upgrades.getSlots(), this.upgrades.selectedUpgrades);
       this.state = 'preRun';
     };
@@ -96,9 +72,7 @@ class Game {
     };
 
     this.ui.onRevive = () => {
-      if (this.economy.spend(this.economy.reviveCost)) {
-        this._revive();
-      }
+      if (this.economy.spend(this.economy.reviveCost)) this._revive();
     };
 
     this.ui.onPlayAgain = () => {
@@ -117,21 +91,18 @@ class Game {
     };
   }
 
-  // ══════════════════════════════════════════════════════
-  //  Run lifecycle
-  // ══════════════════════════════════════════════════════
-
   _startRun() {
     this.economy.spend(this.economy.entryFee);
 
-    this.speed           = BASE_SPEED;
-    this.score           = 0;
-    this.runTime         = 0;
-    this.coresCollected  = 0;
-    this.turnsCompleted  = 0;
+    this.speed = BASE_SPEED;
+    this.score = 0;
+    this.runTime = 0;
+    this.distance = 0;
+    this.coresCollected = 0;
+    this.turnsCompleted = 0;
     this.maxSpeedReached = false;
-    this.slowdownTimer   = 0;
-    this.effects         = [];
+    this.slowdownTimer = 0;
+    this.effects = [];
 
     this.track.reset();
     this.obstacles.reset();
@@ -144,24 +115,19 @@ class Game {
   }
 
   _revive() {
-    this.player.health      = 1;
-    this.player.activeShield= true;
-    this.player.shieldTimer = 4;   // brief invincibility
+    this.player.health = 1;
+    this.player.activeShield = true;
+    this.player.shieldTimer = 4;
     this.state = 'running';
     this.ui.showHUD();
     this._flash('255,255,255', 0.4, 0.5);
   }
-
-  // ══════════════════════════════════════════════════════
-  //  Main update
-  // ══════════════════════════════════════════════════════
 
   _update(dt) {
     if (this.state !== 'running') return;
 
     this.runTime += dt;
 
-    // ── Speed ──────────────────────────────────────────────
     let targetSpeed = Math.min(MAX_SPEED, BASE_SPEED + SPEED_INCREMENT * this.runTime);
     if (this.slowdownTimer > 0) {
       this.slowdownTimer -= dt;
@@ -170,64 +136,48 @@ class Game {
     this.speed = targetSpeed;
     if (this.speed >= MAX_SPEED) this.maxSpeedReached = true;
 
-    // ── Track ──────────────────────────────────────────────
-    this.track.update(dt, this.speed);
-
-    // ── Player ────────────────────────────────────────────
-    this.player.update(dt);
+    this.player.update(dt, this.speed);
+    this.distance += this.speed * dt;
 
     if (this.player.twoFingerTap) {
       this._togglePause();
       return;
     }
 
-    const scrollY = this.track.scrollY;
+    this.track.update(this.distance);
 
-    // ── Obstacles ─────────────────────────────────────────
-    this.obstacles.update(dt, this.speed, scrollY);
-    this.obstacles.spawn(scrollY, this.speed, this.canvas.height);
+    this.obstacles.update(this.distance);
+    this.obstacles.spawn(this.track, this.distance, this.speed);
 
-    // ── Collectibles ──────────────────────────────────────
     const magnetLevel = (this.player.activeUpgrades.find(u => u.id === 'magnet') || {}).level || 0;
-    this.collectibles.update(dt, this.speed, scrollY, magnetLevel);
-    this.collectibles.spawn(scrollY, this.canvas.height);
+    this.collectibles.update(dt, this.distance);
+    this.collectibles.spawn(this.track, this.distance);
 
-    // ── Collision check ───────────────────────────────────
-    const hit = this.obstacles.checkCollision(
-      this.player.lane,
-      scrollY,
-      this.player.jumping,
-      this.player.ducking,
-    );
+    const hit = this.obstacles.checkCollision(this.player);
     if (hit) {
       const died = this.player.takeDamage();
-      if (died) { this._triggerGameOver('SHIP DESTROYED'); return; }
+      if (died) {
+        this._triggerGameOver('SHIP DESTROYED');
+        return;
+      }
       this._flash('255,100,0', 0.4, 0.35);
     }
 
-    // ── Collectible collection ────────────────────────────
-    const collected = this.collectibles.checkCollection(this.player.lane, scrollY, magnetLevel);
+    const collected = this.collectibles.checkCollection(this.player, magnetLevel);
     for (const item of collected) this._processCollectible(item);
 
-    // ── Turn state ────────────────────────────────────────
-    if (this.track.isTurnMissed()) {
+    if (this.track.isTurnMissed(this.player)) {
       this._flash('255,0,0', 0.85, 0.55);
       this._triggerGameOver('MISSED TURN!');
       return;
     }
 
-    // ── Score ─────────────────────────────────────────────
-    const coreBoostLv   = (this.player.activeUpgrades.find(u => u.id === 'coreMultiplier') || {}).level || 0;
-    const coreBonus     = 1 + coreBoostLv * 0.5;
-    this.score          = Math.floor(scrollY / 10 + this.coresCollected * 10 * coreBonus);
+    const coreBoostLv = (this.player.activeUpgrades.find(u => u.id === 'coreMultiplier') || {}).level || 0;
+    const coreBonus = 1 + coreBoostLv * 0.5;
+    this.score = Math.floor(this.distance / 10 + this.coresCollected * 10 * coreBonus);
 
-    // ── Effects ───────────────────────────────────────────
     this._tickEffects(dt);
   }
-
-  // ══════════════════════════════════════════════════════
-  //  Helper methods
-  // ══════════════════════════════════════════════════════
 
   _processCollectible(item) {
     switch (item.type) {
@@ -249,10 +199,10 @@ class Game {
   _handleTurn(direction) {
     if (this.state !== 'running') return;
 
-    // Check momentumControl upgrade — it widens the zone (handled in Track already via TURN_ZONE_HALF)
-    const result = this.track.attemptTurn(direction);
-    switch (result) {
+    const result = this.track.attemptTurn(direction, this.player);
+    switch (result.result) {
       case 'success':
+        this.player.applyTurn(result.newDirection, result.turnPoint);
         this.turnsCompleted++;
         this._flash('255,255,255', 0.55, 0.4);
         break;
@@ -260,7 +210,8 @@ class Game {
         this._flash('255,0,0', 0.85, 0.55);
         this._triggerGameOver('WRONG TURN!');
         break;
-      // 'notInZone' → ignore
+      default:
+        break;
     }
   }
 
@@ -283,10 +234,10 @@ class Game {
     }
 
     this.missions.updateRunStats({
-      distance:       this.track.scrollY,
-      cores:          this.coresCollected,
-      turns:          this.turnsCompleted,
-      maxSpeedReached:this.maxSpeedReached,
+      distance: this.distance,
+      cores: this.coresCollected,
+      turns: this.turnsCompleted,
+      maxSpeedReached: this.maxSpeedReached,
     });
     this.missions.updateStarsProgress(this.economy.getBalance());
 
@@ -312,26 +263,24 @@ class Game {
 
   _getGameState() {
     return {
-      state:         this.state,
-      track:         this.track,
-      player:        this.player,
-      obstacles:     this.obstacles,
-      collectibles:  this.collectibles,
-      score:         this.score,
-      stars:         this.economy.getBalance(),
-      speed:         this.speed,
-      turnWarning:   (this.state === 'running' || this.state === 'paused')
-                       ? this.track.getTurnWarning()
-                       : null,
-      effects:       this.effects,
-      activeUpgrades:this.player.activeUpgrades,
+      state: this.state,
+      track: this.track,
+      player: this.player,
+      obstacles: this.obstacles,
+      collectibles: this.collectibles,
+      score: this.score,
+      stars: this.economy.getBalance(),
+      speed: this.speed,
+      distance: this.distance,
+      turnWarning: (this.state === 'running' || this.state === 'paused') ? this.track.getTurnWarning(this.player) : null,
+      effects: this.effects,
+      activeUpgrades: this.player.activeUpgrades,
     };
   }
 
-  // ══════════════════════════════════════════════════════
   _loop(ts) {
-    const MAX_FRAME_TIME = 0.05; // cap dt to 50 ms to prevent large jumps when tab is backgrounded
-    const dt     = this._lastTs === 0 ? 0 : Math.min((ts - this._lastTs) / 1000, MAX_FRAME_TIME);
+    const MAX_FRAME_TIME = 0.05;
+    const dt = this._lastTs === 0 ? 0 : Math.min((ts - this._lastTs) / 1000, MAX_FRAME_TIME);
     this._lastTs = ts;
 
     this._update(dt);

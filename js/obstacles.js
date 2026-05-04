@@ -1,34 +1,20 @@
 var TRACK_WIDTH = 240;
 var LANE_WIDTH  = 80;
-const HIT_Y_RANGE = 38; // ±px in world-Y for a collision to register
+const LANE_COUNT = 3;
 
-const MIN_OBSTACLE_SPACING    = 180;  // world-px; minimum gap between obstacles
-const MAX_OBSTACLE_SPACING    = 480;  // world-px; gap at zero speed
-const SPACING_DIFFICULTY_RATE = 0.25; // gap shrinks by this many px per px/s of speed
+const MIN_OBSTACLE_SPACING = 180;
+const MAX_OBSTACLE_SPACING = 480;
+const SPACING_DIFFICULTY_RATE = 0.25;
 
 class Obstacles {
   constructor() {
-    this.obstacles  = [];
-    this.nextSpawnY = 600; // leave a safe gap at run start
+    this.obstacles = [];
+    this.nextSpawnDistance = 600;
   }
 
   reset() {
-    this.obstacles  = [];
-    this.nextSpawnY = 600;
-  }
-
-  // ── Spawning ──────────────────────────────────────────────────────────────
-
-  spawn(scrollY, speed, canvasHeight) {
-    const ahead = scrollY + canvasHeight + 300;
-    while (this.nextSpawnY < ahead) {
-      const type = this._pickType();
-      const obs  = this._create(type, this.nextSpawnY);
-      if (obs) this.obstacles.push(obs);
-      // Spacing decreases as speed increases (harder)
-      const base = Math.max(MIN_OBSTACLE_SPACING, MAX_OBSTACLE_SPACING - speed * SPACING_DIFFICULTY_RATE);
-      this.nextSpawnY += base + Math.random() * base * 0.8;
-    }
+    this.obstacles = [];
+    this.nextSpawnDistance = 600;
   }
 
   _pickType() {
@@ -41,114 +27,188 @@ class Obstacles {
     return 'wormhole';
   }
 
-  _create(type, worldY) {
+  _boundsFrom(center, dir, halfForward, halfLateral) {
+    const perp = { x: -dir.z, z: dir.x };
+    const dx = Math.abs(dir.x) * halfForward + Math.abs(perp.x) * halfLateral;
+    const dz = Math.abs(dir.z) * halfForward + Math.abs(perp.z) * halfLateral;
+    return {
+      minX: center.x - dx,
+      maxX: center.x + dx,
+      minZ: center.z - dz,
+      maxZ: center.z + dz,
+    };
+  }
+
+  _laneBounds(center, dir, lane, halfForward) {
+    const perp = { x: -dir.z, z: dir.x };
+    const laneCenter = lane * LANE_WIDTH;
+    const lanePoint = {
+      x: center.x + perp.x * laneCenter,
+      z: center.z + perp.z * laneCenter,
+    };
+    return this._boundsFrom(lanePoint, dir, halfForward, LANE_WIDTH * 0.5);
+  }
+
+  _create(type, sample, lane) {
+    const center = sample.position;
+    const dir = sample.direction;
+
     switch (type) {
       case 'asteroid': {
-        const lane = Math.floor(Math.random() * 3);
-        // Pre-bake jagged shape so it doesn't flicker
         const verts = Array.from({ length: 7 }, () => 0.78 + Math.random() * 0.22);
-        return { type, lane, y: worldY, radius: 22, active: true, verts };
+        const localDistance =
+          (sample.center.x - sample.segment.position.x) * sample.segment.direction.x +
+          (sample.center.z - sample.segment.position.z) * sample.segment.direction.z;
+        return {
+          type,
+          lane,
+          x: center.x,
+          z: center.z,
+          direction: dir,
+          pathDistance: sample.segment.startDistance + localDistance,
+          radius: 22,
+          verts,
+          active: true,
+          bounds: this._boundsFrom(center, dir, 18, LANE_WIDTH * 0.28),
+        };
       }
       case 'laser': {
-        // 30 % chance full-track laser
         const fullTrack = Math.random() < 0.3;
-        const lane = fullTrack ? -1 : Math.floor(Math.random() * 3);
-        return { type, lane, y: worldY, active: true };
+        const halfLateral = fullTrack ? TRACK_WIDTH * 0.5 : LANE_WIDTH * 0.5;
+        return {
+          type,
+          lane: fullTrack ? null : lane,
+          x: center.x,
+          z: center.z,
+          direction: dir,
+          active: true,
+          bounds: this._boundsFrom(center, dir, 6, halfLateral),
+        };
       }
       case 'tunnel': {
-        const gapLane = Math.floor(Math.random() * 3);
-        return { type, lane: -1, gapLane, y: worldY, height: 64, active: true };
+        const gapLane = Math.floor(Math.random() * LANE_COUNT) - 1;
+        return {
+          type,
+          lane: null,
+          gapLane,
+          x: center.x,
+          z: center.z,
+          direction: dir,
+          active: true,
+          bounds: this._boundsFrom(center, dir, 22, TRACK_WIDTH * 0.5),
+          gapBounds: this._laneBounds(center, dir, gapLane, 22),
+        };
       }
       case 'gravityZone': {
-        const lane = Math.floor(Math.random() * 3);
-        return { type, lane, y: worldY, height: 160, active: true };
+        return {
+          type,
+          lane,
+          x: center.x,
+          z: center.z,
+          direction: dir,
+          height: 160,
+          active: true,
+          bounds: this._boundsFrom(center, dir, 80, LANE_WIDTH * 0.5),
+        };
       }
       case 'zeroGZone': {
-        return { type, lane: -1, y: worldY, height: 130, active: true };
+        return {
+          type,
+          lane: null,
+          x: center.x,
+          z: center.z,
+          direction: dir,
+          height: 130,
+          active: true,
+          bounds: this._boundsFrom(center, dir, 70, TRACK_WIDTH * 0.5),
+        };
       }
       case 'wormhole': {
-        const lane = Math.floor(Math.random() * 3);
-        return { type, lane, y: worldY, radius: 28, active: true };
+        return {
+          type,
+          lane,
+          x: center.x,
+          z: center.z,
+          direction: dir,
+          radius: 28,
+          active: true,
+          bounds: this._boundsFrom(center, dir, 16, LANE_WIDTH * 0.28),
+        };
       }
       default:
         return null;
     }
   }
 
-  // ── Update ────────────────────────────────────────────────────────────────
+  spawn(track, playerDistance, speed) {
+    const aheadDistance = playerDistance + 4200;
 
-  update(dt, speed, scrollY) {
-    // Cull obstacles well behind the player
-    this.obstacles = this.obstacles.filter(o => o.y > scrollY - 400);
+    while (this.nextSpawnDistance < aheadDistance) {
+      const type = this._pickType();
+      const lane = Math.floor(Math.random() * LANE_COUNT) - 1;
+      const laneOffset = lane * LANE_WIDTH;
+      const sample = track.sampleByDistance(this.nextSpawnDistance, laneOffset);
+      const obstacle = this._create(type, sample, lane);
+      if (obstacle) {
+        obstacle.pathDistance = this.nextSpawnDistance;
+        this.obstacles.push(obstacle);
+      }
+
+      const base = Math.max(MIN_OBSTACLE_SPACING, MAX_OBSTACLE_SPACING - speed * SPACING_DIFFICULTY_RATE);
+      this.nextSpawnDistance += base + Math.random() * base * 0.8;
+    }
   }
 
-  // ── Visibility ────────────────────────────────────────────────────────────
-
-  getVisible(scrollY, canvasHeight) {
-    const playerSY = canvasHeight * 0.82;
-    return this.obstacles.filter(o => {
-      if (!o.active) return false;
-      const sy = playerSY - (o.y - scrollY);
-      return sy > -150 && sy < canvasHeight + 150;
-    });
+  update(playerDistance) {
+    this.obstacles = this.obstacles.filter(o => o.active && o.pathDistance > playerDistance - 500);
   }
 
-  // ── Collision ─────────────────────────────────────────────────────────────
+  getVisible(playerDistance, drawDistance) {
+    return this.obstacles.filter(o => o.active && o.pathDistance > playerDistance - 100 && o.pathDistance < playerDistance + drawDistance);
+  }
 
-  /**
-   * @param {number} playerLane
-   * @param {number} playerWorldY  (= track.scrollY)
-   * @param {boolean} jumping
-   * @param {boolean} ducking
-   * @returns {object|null}  the obstacle hit, or null
-   */
-  checkCollision(playerLane, playerWorldY, jumping, ducking) {
+  _overlap(a, b) {
+    return a.minX <= b.maxX && a.maxX >= b.minX && a.minZ <= b.maxZ && a.maxZ >= b.minZ;
+  }
+
+  checkCollision(player) {
+    const playerBox = player.getWorldHitbox();
+
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
-
-      const dy = Math.abs(obs.y - playerWorldY);
+      if (!this._overlap(playerBox, obs.bounds)) continue;
 
       switch (obs.type) {
         case 'asteroid':
-          if (jumping) break;              // jump clears ground obstacles
-          if (obs.lane !== playerLane) break;
-          if (dy <= HIT_Y_RANGE) { obs.active = false; return obs; }
-          break;
-
-        case 'laser':
-          // Laser cannot be jumped over
-          if (obs.lane !== -1 && obs.lane !== playerLane) break;
-          if (dy <= HIT_Y_RANGE * 0.55) { obs.active = false; return obs; }
-          break;
-
-        case 'tunnel':
-          if (ducking) break;              // duck fits through any gap
-          if (playerLane === obs.gapLane) break; // correct lane is the gap
-          if (dy <= obs.height * 0.5) { obs.active = false; return obs; }
-          break;
-
         case 'wormhole':
-          if (obs.lane !== playerLane) break;
-          if (dy <= HIT_Y_RANGE * 0.7) { obs.active = false; return obs; }
+          if (!player.jumping) {
+            obs.active = false;
+            return obs;
+          }
           break;
-
-        // gravityZone / zeroGZone are handled as zone effects, not direct hits
+        case 'laser':
+          obs.active = false;
+          return obs;
+        case 'tunnel':
+          if (!player.ducking && !this._overlap(playerBox, obs.gapBounds)) {
+            obs.active = false;
+            return obs;
+          }
+          break;
         default:
           break;
       }
     }
+
     return null;
   }
 
-  /**
-   * Returns 'gravity', 'zeroG', or null.
-   */
-  getZoneEffect(playerLane, playerWorldY) {
+  getZoneEffect(player) {
+    const playerBox = player.getWorldHitbox();
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
       if (obs.type !== 'gravityZone' && obs.type !== 'zeroGZone') continue;
-      if (Math.abs(obs.y - playerWorldY) > obs.height * 0.5) continue;
-      if (obs.lane !== -1 && obs.lane !== playerLane) continue;
+      if (!this._overlap(playerBox, obs.bounds)) continue;
       return obs.type === 'gravityZone' ? 'gravity' : 'zeroG';
     }
     return null;

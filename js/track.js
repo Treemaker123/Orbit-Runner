@@ -1,126 +1,171 @@
 const SEGMENT_MIN_LEN = 1200;
 const SEGMENT_MAX_LEN = 2400;
-const TURN_ZONE_HALF  = 120; // radius of the valid-turn window (±world-px around the turn point)
-// Distance at which an upcoming corner becomes visible in the perspective world.
-// Larger than the previous value because the track now physically bends in 3D
-// space — players need to *see* the bend approaching, not read a text prompt.
-const TURN_WARN_DIST  = 1800;
+const TURN_ZONE_AHEAD_DISTANCE = 90;
+const TURN_ZONE_BEHIND_DISTANCE = 140;
+const TURN_WARN_DIST = 1800;
 
 class Track {
   constructor() {
     this.segments = [];
-    this.scrollY  = 0;
-    this._nextSegmentStartY = 0;
-    this._currentTurnHandled = false;
+    this.turnIndex = 0;
+    this._nextStartPos = { x: 0, z: 0 };
+    this._nextStartDir = { x: 0, z: 1 };
+    this._nextStartDistance = 0;
     this.reset();
   }
 
   reset() {
     this.segments = [];
-    this.scrollY  = 0;
-    this._nextSegmentStartY = 0;
-    this._currentTurnHandled = false;
-    // Pre-generate several segments ahead
-    for (let i = 0; i < 6; i++) this._generateNextSegment();
+    this.turnIndex = 0;
+    this._nextStartPos = { x: 0, z: 0 };
+    this._nextStartDir = { x: 0, z: 1 };
+    this._nextStartDistance = 0;
+
+    for (let i = 0; i < 8; i++) this._generateNextSegment();
+  }
+
+  _rotateDir(dir, turnDirection) {
+    if (turnDirection === 'left') return { x: -dir.z, z: dir.x };
+    return { x: dir.z, z: -dir.x };
   }
 
   _generateNextSegment() {
-    const length        = SEGMENT_MIN_LEN + Math.random() * (SEGMENT_MAX_LEN - SEGMENT_MIN_LEN);
+    const direction = { x: this._nextStartDir.x, z: this._nextStartDir.z };
+    const length = SEGMENT_MIN_LEN + Math.random() * (SEGMENT_MAX_LEN - SEGMENT_MIN_LEN);
     const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
-    const startY        = this._nextSegmentStartY;
-    const turnY         = startY + length;
-    this.segments.push({ startY, length, turnDirection, turnY });
-    this._nextSegmentStartY = turnY;
+
+    const end = {
+      x: this._nextStartPos.x + direction.x * length,
+      z: this._nextStartPos.z + direction.z * length,
+    };
+
+    const segment = {
+      position: { x: this._nextStartPos.x, z: this._nextStartPos.z },
+      direction,
+      length,
+      turnDirection,
+      end,
+      startDistance: this._nextStartDistance,
+      endDistance: this._nextStartDistance + length,
+    };
+
+    this.segments.push(segment);
+
+    this._nextStartPos = { x: end.x, z: end.z };
+    this._nextStartDir = this._rotateDir(direction, turnDirection);
+    this._nextStartDistance = segment.endDistance;
   }
 
-  update(dt, speed) {
-    this.scrollY += speed * dt;
-
-    // Remove segments whose turn is well behind the player
-    while (
-      this.segments.length > 1 &&
-      this.segments[0].turnY < this.scrollY - TURN_ZONE_HALF * 3
-    ) {
+  update(playerDistance) {
+    while (this.turnIndex > 1 && this.segments.length > 10) {
       this.segments.shift();
-      this._currentTurnHandled = false;
+      this.turnIndex--;
     }
 
-    // Keep plenty of segments ahead
-    while (this._nextSegmentStartY < this.scrollY + 8000) {
+    while (this._nextStartDistance < playerDistance + 9000) {
       this._generateNextSegment();
     }
   }
 
-  /** Returns the nearest upcoming turn (the first segment whose turn hasn't been passed). */
-  getUpcomingTurn() {
-    for (const seg of this.segments) {
-      if (seg.turnY >= this.scrollY - TURN_ZONE_HALF) return seg;
-    }
-    return null;
+  _getCurrentTurnSegment() {
+    if (this.turnIndex < 0 || this.turnIndex >= this.segments.length) return null;
+    return this.segments[this.turnIndex];
   }
 
-  /** Pixels between player and next turn (positive = ahead, negative = behind). */
-  getTurnDistance() {
-    const turn = this.getUpcomingTurn();
-    return turn ? turn.turnY - this.scrollY : Infinity;
+  _dot(a, b) {
+    return a.x * b.x + a.z * b.z;
   }
 
-  isInTurnZone() {
-    return Math.abs(this.getTurnDistance()) <= TURN_ZONE_HALF;
+  _perp(dir) {
+    return { x: -dir.z, z: dir.x };
   }
 
-  /** True when the player has scrolled past the turn without handling it. */
-  isTurnMissed() {
-    const turn = this.getUpcomingTurn();
-    if (!turn) return false;
-    if (this._currentTurnHandled) return false;
-    return this.scrollY > turn.turnY + TURN_ZONE_HALF;
-  }
+  getTurnState(player) {
+    const seg = this._getCurrentTurnSegment();
+    if (!seg) return null;
 
-  /**
-   * Attempt a turn input.
-   * @param {'left'|'right'} direction
-   * @returns {'success'|'fail'|'notInZone'}
-   */
-  attemptTurn(direction) {
-    const turn = this.getUpcomingTurn();
-    if (!turn) return 'notInZone';
-    if (this._currentTurnHandled) return 'notInZone';
+    const toTurn = {
+      x: seg.end.x - player.center.x,
+      z: seg.end.z - player.center.z,
+    };
 
-    const dist = turn.turnY - this.scrollY;
-    if (Math.abs(dist) > TURN_ZONE_HALF) return 'notInZone';
+    const forwardDist = this._dot(toTurn, seg.direction);
+    const lateralDist = Math.abs(this._dot(toTurn, this._perp(seg.direction)));
+    const inZone =
+      forwardDist <= TURN_ZONE_AHEAD_DISTANCE &&
+      forwardDist >= -TURN_ZONE_BEHIND_DISTANCE &&
+      lateralDist <= TRACK_WIDTH * 0.8;
 
-    if (direction === turn.turnDirection) {
-      // The world physically rotates 90° here. Snap the camera to the turn
-      // point and consume the segment so that everything past the corner —
-      // which was generated as the *next* segment of track — now becomes
-      // "straight ahead" along the new forward direction. The next segment
-      // (now at the head of the queue) hasn't been handled yet, so the
-      // `_currentTurnHandled` flag stays false.
-      this.scrollY = turn.turnY;
-      this.segments.shift();
-      this._currentTurnHandled = false;
-      return 'success';
-    }
-    return 'fail';
-  }
-
-  getScrollOffset() { return this.scrollY; }
-
-  /**
-   * Returns warning data when a turn is within TURN_WARN_DIST, or null.
-   * @returns {{direction:string, distance:number, inZone:boolean}|null}
-   */
-  getTurnWarning() {
-    const turn = this.getUpcomingTurn();
-    if (!turn) return null;
-    const dist = turn.turnY - this.scrollY;
-    if (dist > TURN_WARN_DIST || dist < -TURN_ZONE_HALF) return null;
-    if (this._currentTurnHandled) return null;
     return {
-      direction: turn.turnDirection,
-      distance:  dist,
-      inZone:    Math.abs(dist) <= TURN_ZONE_HALF,
+      segment: seg,
+      distance: forwardDist,
+      lateralDist,
+      inZone,
+      direction: seg.turnDirection,
+      turnPoint: { x: seg.end.x, z: seg.end.z },
+      newDirection: this._rotateDir(seg.direction, seg.turnDirection),
+    };
+  }
+
+  isTurnMissed(player) {
+    const turn = this.getTurnState(player);
+    if (!turn) return false;
+    return turn.distance < -TURN_ZONE_BEHIND_DISTANCE;
+  }
+
+  attemptTurn(direction, player) {
+    const turn = this.getTurnState(player);
+    if (!turn) return { result: 'notInZone' };
+    if (!turn.inZone) return { result: 'notInZone' };
+    if (direction !== turn.direction) return { result: 'fail' };
+
+    this.turnIndex++;
+    return {
+      result: 'success',
+      newDirection: turn.newDirection,
+      turnPoint: turn.turnPoint,
+    };
+  }
+
+  getTurnWarning(player) {
+    const turn = this.getTurnState(player);
+    if (!turn) return null;
+    if (turn.distance > TURN_WARN_DIST || turn.distance < -TURN_ZONE_BEHIND_DISTANCE) return null;
+
+    return {
+      direction: turn.direction,
+      distance: turn.distance,
+      inZone: turn.inZone,
+    };
+  }
+
+  sampleByDistance(distanceAlongPath, laneOffset = 0) {
+    if (distanceAlongPath < 0) distanceAlongPath = 0;
+
+    let seg = this.segments[this.segments.length - 1];
+    for (const s of this.segments) {
+      if (distanceAlongPath >= s.startDistance && distanceAlongPath <= s.endDistance) {
+        seg = s;
+        break;
+      }
+    }
+
+    const local = Math.max(0, Math.min(seg.length, distanceAlongPath - seg.startDistance));
+    const center = {
+      x: seg.position.x + seg.direction.x * local,
+      z: seg.position.z + seg.direction.z * local,
+    };
+
+    const perp = this._perp(seg.direction);
+    return {
+      center,
+      direction: { x: seg.direction.x, z: seg.direction.z },
+      perp,
+      position: {
+        x: center.x + perp.x * laneOffset,
+        z: center.z + perp.z * laneOffset,
+      },
+      segment: seg,
     };
   }
 }
