@@ -1,5 +1,5 @@
-const TRACK_WIDTH = 240;
-const LANE_WIDTH  = 80;
+var TRACK_WIDTH = 240;
+var LANE_WIDTH  = 80;
 
 class Renderer {
   constructor(canvas) {

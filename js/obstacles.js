@@ -1,5 +1,5 @@
-const TRACK_WIDTH = 240;
-const LANE_WIDTH  = 80;
+var TRACK_WIDTH = 240;
+var LANE_WIDTH  = 80;
 const HIT_Y_RANGE = 38; // ±px in world-Y for a collision to register
 
 const MIN_OBSTACLE_SPACING    = 180;  // world-px; minimum gap between obstacles
