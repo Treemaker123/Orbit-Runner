@@ -8,7 +8,7 @@ const CAMERA_FORWARD_OFFSET = 560;
 
 const HORIZON_FRAC = 0.40;
 const GROUND_FRAC = 0.96;
-const FOCAL = 420;
+const PROJECTION_FOCAL = 420;
 // Smaller values increase near-field perspective exaggeration.
 const PROJECTION_NEAR = 90;
 // Cull points very close to camera to avoid unstable giant projections.
@@ -69,8 +69,8 @@ class Renderer {
     if (d <= NEAR_CLIP || d > MAX_DRAW_DIST) return null;
 
     const lateral = relX * camera.right.x + relZ * camera.right.z;
-    // Use a near-plane term so perspective can be stronger than the old FOCAL/(FOCAL+d) curve.
-    const scale = FOCAL / (PROJECTION_NEAR + d);
+    // Use a near-plane term so perspective can be stronger than the old PROJECTION_FOCAL/(PROJECTION_FOCAL+d) curve.
+    const scale = PROJECTION_FOCAL / (PROJECTION_NEAR + d);
 
     const horizonY = H * HORIZON_FRAC;
     const baselineY = H * GROUND_FRAC;
