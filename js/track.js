@@ -1,7 +1,10 @@
 const SEGMENT_MIN_LEN = 1200;
 const SEGMENT_MAX_LEN = 2400;
-const TURN_ZONE_HALF  = 90; // radius of the valid-turn window (±90 world-px around the turn point)
-const TURN_WARN_DIST  = 600;
+const TURN_ZONE_HALF  = 120; // radius of the valid-turn window (±world-px around the turn point)
+// Distance at which an upcoming corner becomes visible in the perspective world.
+// Larger than the previous value because the track now physically bends in 3D
+// space — players need to *see* the bend approaching, not read a text prompt.
+const TURN_WARN_DIST  = 1800;
 
 class Track {
   constructor() {
@@ -89,6 +92,13 @@ class Track {
 
     if (direction === turn.turnDirection) {
       this._currentTurnHandled = true;
+      // The world physically rotates 90° here. Snap the camera to the turn
+      // point and consume the segment so that everything past the corner —
+      // which was generated as the *next* segment of track — now becomes
+      // "straight ahead" along the new forward direction.
+      this.scrollY = turn.turnY;
+      this.segments.shift();
+      this._currentTurnHandled = false;
       return 'success';
     }
     return 'fail';

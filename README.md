@@ -40,7 +40,7 @@ python3 -m http.server 8080
 
 ## Gameplay
 
-- 3-lane grid-based track with mandatory 90° turns — react in time or it's game over.
+- 3-lane forward-running track (Temple-Run style 2.5D pseudo-3D perspective) with mandatory 90° corners — the track physically bends in world space and rotates the forward direction when you turn. React in time or it's game over.
 - Obstacles: asteroids, laser beams, narrow tunnel sections, gravity zones, zero-G zones, wormholes.
 - Collectibles:
   - **Energy cores** — main scoring item.
@@ -82,7 +82,7 @@ js/
   player.js        player controls & physics
   obstacles.js     obstacle spawning & collision
   collectibles.js  cores, shards, orbs
-  renderer.js      Canvas 2D top-down renderer
+  renderer.js      Canvas 2D pseudo-3D / 2.5D perspective renderer
   ui.js            menus, HUD, popups
   economy.js       STARS balance
   upgrades.js      upgrade definitions & state
