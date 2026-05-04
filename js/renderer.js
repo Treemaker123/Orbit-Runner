@@ -2,13 +2,15 @@ var TRACK_WIDTH = 240;
 var LANE_WIDTH  = 80;
 
 const TRACK_HALF_W = TRACK_WIDTH * 0.5;
-const CAMERA_BACK_DISTANCE = 140;
-const CAMERA_HEIGHT = 10;
+const CAMERA_BACK_DISTANCE = 120;
+const CAMERA_HEIGHT = 7;
 const CAMERA_FORWARD_OFFSET = 560;
 
-const HORIZON_FRAC = 0.34;
+const HORIZON_FRAC = 0.40;
 const GROUND_FRAC = 0.96;
 const FOCAL = 420;
+const PROJECTION_NEAR = 90;
+const NEAR_CLIP = 20;
 const MAX_DRAW_DIST = 3400;
 const STRIP_LEN = 120;
 
@@ -62,10 +64,10 @@ class Renderer {
     const relZ = point.z - camera.cameraPos.z;
 
     const d = relX * camera.forward.x + relZ * camera.forward.z;
-    if (d <= 1 || d > MAX_DRAW_DIST) return null;
+    if (d <= NEAR_CLIP || d > MAX_DRAW_DIST) return null;
 
     const lateral = relX * camera.right.x + relZ * camera.right.z;
-    const scale = FOCAL / (FOCAL + d);
+    const scale = FOCAL / (PROJECTION_NEAR + d);
 
     const horizonY = H * HORIZON_FRAC;
     const baselineY = H * GROUND_FRAC;
