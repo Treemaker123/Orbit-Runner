@@ -1,4 +1,4 @@
-var LANE_WIDTH = 80;
+var LANE_WIDTH = 120;
 const PULSE_SPEED = 3.2;
 
 class Collectibles {
