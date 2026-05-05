@@ -116,6 +116,7 @@ class Game {
 
     this.audio.startEngine();
     this._wasJumping = false;
+    this._cornerWaitTimer = 0;
 
     this.state = 'running';
     this.ui.showHUD();
@@ -128,6 +129,7 @@ class Game {
     this.state = 'running';
     this.audio.startEngine();
     this._wasJumping = false;
+    this._cornerWaitTimer = 0;
     this.ui.showHUD();
     this._flash('255,255,255', 0.4, 0.5);
   }
@@ -162,6 +164,24 @@ class Game {
 
     this.track.update(this.distance);
 
+    // Clamp the player at the turn-corner so they never visually drift off the
+    // track.  If they spend too long at the corner without turning, game over.
+    const cornerState = this.track.getTurnState(this.player);
+    if (cornerState && cornerState.distance < 0) {
+      // Player has overshot the corner – snap back to the corner point.
+      this.player.center.x = cornerState.turnPoint.x;
+      this.player.center.z = cornerState.turnPoint.z;
+      this.player._syncWorldPosition();
+      this._cornerWaitTimer += dt;
+      if (this._cornerWaitTimer > 0.9) {
+        this._flash('255,0,0', 0.85, 0.55);
+        this._triggerGameOver('MISSED TURN!');
+        return;
+      }
+    } else {
+      this._cornerWaitTimer = 0;
+    }
+
     this.obstacles.update(this.distance);
     this.obstacles.spawn(this.track, this.distance, this.speed);
 
@@ -182,12 +202,6 @@ class Game {
 
     const collected = this.collectibles.checkCollection(this.player, magnetLevel);
     for (const item of collected) this._processCollectible(item);
-
-    if (this.track.isTurnMissed(this.player)) {
-      this._flash('255,0,0', 0.85, 0.55);
-      this._triggerGameOver('MISSED TURN!');
-      return;
-    }
 
     const coreBoostLv = (this.player.activeUpgrades.find(u => u.id === 'coreMultiplier') || {}).level || 0;
     const coreBonus = 1 + coreBoostLv * 0.5;
