@@ -20,6 +20,12 @@ const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.90;
 // Duration in seconds of the smooth camera direction snap after a turn.
 const TURN_SNAP_DURATION = 0.13;
 
+// Outer track edge line appearance.
+const EDGE_COLOR      = 'rgba(0,210,255,0.82)';
+const EDGE_LINE_WIDTH = 2;
+const EDGE_GLOW_COLOR = '#00d4ff';
+const EDGE_GLOW_BLUR  = 10;
+
 class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -304,10 +310,10 @@ class Renderer {
 
     for (const sign of [-1, 1]) {
       ctx.save();
-      ctx.strokeStyle = 'rgba(0,210,255,0.82)';
-      ctx.lineWidth   = 2;
-      ctx.shadowColor = '#00d4ff';
-      ctx.shadowBlur  = 10;
+      ctx.strokeStyle = EDGE_COLOR;
+      ctx.lineWidth   = EDGE_LINE_WIDTH;
+      ctx.shadowColor = EDGE_GLOW_COLOR;
+      ctx.shadowBlur  = EDGE_GLOW_BLUR;
 
       ctx.beginPath();
       let penDown = false;

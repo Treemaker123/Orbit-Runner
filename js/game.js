@@ -1,6 +1,8 @@
-const BASE_SPEED      = 220;
-const SPEED_INCREMENT = 8;
-const MAX_SPEED       = 700;
+const BASE_SPEED          = 220;
+const SPEED_INCREMENT     = 8;
+const MAX_SPEED           = 700;
+// How many seconds a player may wait at a corner before the run ends.
+const CORNER_WAIT_TIMEOUT = 0.9;
 
 class Game {
   constructor(canvas, economy, missions, upgrades) {
@@ -173,7 +175,7 @@ class Game {
       this.player.center.z = cornerState.turnPoint.z;
       this.player._syncWorldPosition();
       this._cornerWaitTimer += dt;
-      if (this._cornerWaitTimer > 0.9) {
+      if (this._cornerWaitTimer > CORNER_WAIT_TIMEOUT) {
         this._flash('255,0,0', 0.85, 0.55);
         this._triggerGameOver('MISSED TURN!');
         return;
