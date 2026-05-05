@@ -20,6 +20,12 @@ const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.90;
 // Duration in seconds of the smooth camera direction snap after a turn.
 const TURN_SNAP_DURATION = 0.13;
 
+// Outer track edge line appearance.
+const EDGE_COLOR      = 'rgba(0,210,255,0.82)';
+const EDGE_LINE_WIDTH = 2;
+const EDGE_GLOW_COLOR = '#00d4ff';
+const EDGE_GLOW_BLUR  = 10;
+
 class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -213,33 +219,159 @@ class Renderer {
       const s0 = track.sampleByDistance(abs0, 0);
       const s1 = track.sampleByDistance(abs1, 0);
 
-      const l0 = { x: s0.center.x - s0.perp.x * TRACK_HALF_W, y: 0, z: s0.center.z - s0.perp.z * TRACK_HALF_W };
-      const r0 = { x: s0.center.x + s0.perp.x * TRACK_HALF_W, y: 0, z: s0.center.z + s0.perp.z * TRACK_HALF_W };
-      const l1 = { x: s1.center.x - s1.perp.x * TRACK_HALF_W, y: 0, z: s1.center.z - s1.perp.z * TRACK_HALF_W };
-      const r1 = { x: s1.center.x + s1.perp.x * TRACK_HALF_W, y: 0, z: s1.center.z + s1.perp.z * TRACK_HALF_W };
+      const stripIndex = Math.floor(abs0 / STRIP_LEN);
+      const color = stripIndex % 2 === 0 ? '#0a0a22' : '#06061a';
 
-      const pL0 = this._projectWorld(l0, camera, W, H);
-      const pR0 = this._projectWorld(r0, camera, W, H);
-      const pL1 = this._projectWorld(l1, camera, W, H);
-      const pR1 = this._projectWorld(r1, camera, W, H);
+      if (s0.segment !== s1.segment) {
+        // This strip straddles a corner – split it so each half stays within
+        // its own segment, then fill the outer-elbow gap between them.
+        const P   = s0.segment.end;
+        const p2  = { x: -s1.segment.direction.z, z: s1.segment.direction.x };
 
-      if (pL0 && pR0 && pL1 && pR1) {
-        const stripIndex = Math.floor(abs0 / STRIP_LEN);
-        ctx.fillStyle = stripIndex % 2 === 0 ? '#0a0a22' : '#06061a';
-        ctx.beginPath();
-        ctx.moveTo(pL0.sx, pL0.sy);
-        ctx.lineTo(pR0.sx, pR0.sy);
-        ctx.lineTo(pR1.sx, pR1.sy);
-        ctx.lineTo(pL1.sx, pL1.sy);
-        ctx.closePath();
-        ctx.fill();
+        // Half that ends at the corner (uses s0's perp throughout)
+        const sMid   = { center: { x: P.x, z: P.z }, perp: s0.perp };
+        this._drawTrackQuad(ctx, s0, sMid, camera, W, H, color);
+
+        // The outer-elbow square that neither half covers
+        this._drawCornerFill(ctx, P, s0.perp, p2, camera, W, H, color);
+
+        // Half that starts at the corner (uses s1's perp throughout)
+        const sStart = { center: { x: P.x, z: P.z }, perp: p2 };
+        this._drawTrackQuad(ctx, sStart, s1, camera, W, H, color);
+      } else {
+        this._drawTrackQuad(ctx, s0, s1, camera, W, H, color);
       }
 
       relativeDistance -= STRIP_LEN;
     }
 
+    // Glowing edge lines with proper L-shaped elbows at every corner
+    this._drawTrackEdge(ctx, track, playerDistance, camera, W, H);
+
     this._drawLaneDivider(ctx, track, playerDistance, camera, W, H, -LANE_WIDTH * 0.5);
     this._drawLaneDivider(ctx, track, playerDistance, camera, W, H, LANE_WIDTH * 0.5);
+  }
+
+  // Draws a single trapezoid strip between two sampled track cross-sections.
+  _drawTrackQuad(ctx, s0, s1, camera, W, H, color) {
+    const hw = TRACK_HALF_W;
+    const l0 = { x: s0.center.x - s0.perp.x * hw, y: 0, z: s0.center.z - s0.perp.z * hw };
+    const r0 = { x: s0.center.x + s0.perp.x * hw, y: 0, z: s0.center.z + s0.perp.z * hw };
+    const l1 = { x: s1.center.x - s1.perp.x * hw, y: 0, z: s1.center.z - s1.perp.z * hw };
+    const r1 = { x: s1.center.x + s1.perp.x * hw, y: 0, z: s1.center.z + s1.perp.z * hw };
+
+    const pL0 = this._projectWorld(l0, camera, W, H);
+    const pR0 = this._projectWorld(r0, camera, W, H);
+    const pL1 = this._projectWorld(l1, camera, W, H);
+    const pR1 = this._projectWorld(r1, camera, W, H);
+    if (!pL0 || !pR0 || !pL1 || !pR1) return;
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(pL0.sx, pL0.sy);
+    ctx.lineTo(pR0.sx, pR0.sy);
+    ctx.lineTo(pR1.sx, pR1.sy);
+    ctx.lineTo(pL1.sx, pL1.sy);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Fills the outer-elbow square that opens up at a 90-degree corner.
+  // p1 = perp of the incoming segment, p2 = perp of the outgoing segment.
+  // The quad is: P → (P - p1*hw) → (P - p1*hw - p2*hw) → (P - p2*hw)
+  _drawCornerFill(ctx, P, p1, p2, camera, W, H, color) {
+    const hw = TRACK_HALF_W;
+    const ptP     = { x: P.x,                         y: 0, z: P.z };
+    const ptL1    = { x: P.x - p1.x * hw,             y: 0, z: P.z - p1.z * hw };
+    const ptElbow = { x: P.x - p1.x * hw - p2.x * hw, y: 0, z: P.z - p1.z * hw - p2.z * hw };
+    const ptL2    = { x: P.x - p2.x * hw,             y: 0, z: P.z - p2.z * hw };
+
+    const pP     = this._projectWorld(ptP,     camera, W, H);
+    const pL1    = this._projectWorld(ptL1,    camera, W, H);
+    const pElbow = this._projectWorld(ptElbow, camera, W, H);
+    const pL2    = this._projectWorld(ptL2,    camera, W, H);
+    if (!pP || !pL1 || !pElbow || !pL2) return;
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(pP.sx,     pP.sy);
+    ctx.lineTo(pL1.sx,    pL1.sy);
+    ctx.lineTo(pElbow.sx, pElbow.sy);
+    ctx.lineTo(pL2.sx,    pL2.sy);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Draws both outer edge lines as glowing cyan paths with a proper L-shaped
+  // elbow inserted at every corner within view.
+  _drawTrackEdge(ctx, track, playerDistance, camera, W, H) {
+    const hw   = TRACK_HALF_W;
+    const segs = track.segments;
+
+    for (const sign of [-1, 1]) {
+      ctx.save();
+      ctx.strokeStyle = EDGE_COLOR;
+      ctx.lineWidth   = EDGE_LINE_WIDTH;
+      ctx.shadowColor = EDGE_GLOW_COLOR;
+      ctx.shadowBlur  = EDGE_GLOW_BLUR;
+
+      ctx.beginPath();
+      let penDown = false;
+
+      for (let i = 0; i < segs.length; i++) {
+        const seg = segs[i];
+        if (seg.endDistance < playerDistance ||
+            seg.startDistance > playerDistance + MAX_DRAW_DIST) {
+          penDown = false;
+          continue;
+        }
+
+        const perp = { x: -seg.direction.z, z: seg.direction.x };
+        const off  = hw * sign;
+
+        // Start point: clamp to visible range
+        const visStart   = Math.max(seg.startDistance, playerDistance);
+        const localStart = visStart - seg.startDistance;
+        const cStart     = {
+          x: seg.position.x + seg.direction.x * localStart,
+          z: seg.position.z + seg.direction.z * localStart,
+        };
+        const ptStart = { x: cStart.x + perp.x * off, y: 0, z: cStart.z + perp.z * off };
+
+        // End point is always the segment's turn corner
+        const ptEnd = { x: seg.end.x + perp.x * off, y: 0, z: seg.end.z + perp.z * off };
+
+        const pStart = this._projectWorld(ptStart, camera, W, H);
+        const pEnd   = this._projectWorld(ptEnd,   camera, W, H);
+
+        if (!penDown) {
+          if (pStart) { ctx.moveTo(pStart.sx, pStart.sy); penDown = true; }
+        } else if (pStart) {
+          ctx.lineTo(pStart.sx, pStart.sy);
+        }
+        if (pEnd && penDown) ctx.lineTo(pEnd.sx, pEnd.sy);
+        if (!pEnd) penDown = false;
+
+        // Insert the corner elbow so the edge bends at a right angle instead
+        // of a diagonal.
+        if (i + 1 < segs.length && penDown) {
+          const seg2 = segs[i + 1];
+          if (seg2.startDistance <= playerDistance + MAX_DRAW_DIST) {
+            const p2      = { x: -seg2.direction.z, z: seg2.direction.x };
+            const ptElbow = {
+              x: seg.end.x + (perp.x + p2.x) * off,
+              y: 0,
+              z: seg.end.z + (perp.z + p2.z) * off,
+            };
+            const pElbow = this._projectWorld(ptElbow, camera, W, H);
+            if (pElbow) ctx.lineTo(pElbow.sx, pElbow.sy);
+          }
+        }
+      }
+
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   _drawLaneDivider(ctx, track, playerDistance, camera, W, H, laneOffset) {
