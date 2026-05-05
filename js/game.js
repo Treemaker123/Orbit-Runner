@@ -31,6 +31,7 @@ class Game {
     this.track = new Track();
     this.obstacles = new Obstacles();
     this.collectibles = new Collectibles();
+    this.audio = new AudioManager();
 
     this.player.initControls();
 
@@ -43,10 +44,13 @@ class Game {
     } catch (_) {}
 
     window.addEventListener('keydown', e => {
+      this.audio.resume();
       if (e.code === 'KeyQ') this._handleTurn('left');
       if (e.code === 'KeyE') this._handleTurn('right');
       if (e.code === 'KeyP' || e.code === 'Escape') this._togglePause();
     });
+
+    window.addEventListener('touchstart', () => this.audio.resume(), { passive: true });
 
     window.addEventListener('resize', () => this.renderer.resize());
 
@@ -110,6 +114,9 @@ class Game {
     this.player.reset();
     this.player.setActiveUpgrades(this.upgrades.getRunUpgrades());
 
+    this.audio.startEngine();
+    this._wasJumping = false;
+
     this.state = 'running';
     this.ui.showHUD();
   }
@@ -119,6 +126,8 @@ class Game {
     this.player.activeShield = true;
     this.player.shieldTimer = 4;
     this.state = 'running';
+    this.audio.startEngine();
+    this._wasJumping = false;
     this.ui.showHUD();
     this._flash('255,255,255', 0.4, 0.5);
   }
@@ -139,6 +148,13 @@ class Game {
     this.player.update(dt, this.speed);
     this.distance += this.speed * dt;
 
+    // Update engine sound pitch with speed
+    this.audio.setSpeed(this.speed, MAX_SPEED);
+
+    // Detect jump start for sound
+    if (this.player.jumping && !this._wasJumping) this.audio.playJump();
+    this._wasJumping = this.player.jumping;
+
     if (this.player.twoFingerTap) {
       this._togglePause();
       return;
@@ -156,6 +172,7 @@ class Game {
     const hit = this.obstacles.checkCollision(this.player, this.distance);
     if (hit) {
       const died = this.player.takeDamage();
+      this.audio.playHit();
       if (died) {
         this._triggerGameOver('SHIP DESTROYED');
         return;
@@ -184,13 +201,20 @@ class Game {
       case 'energyCore':
         this.coresCollected++;
         this.economy.earn(5);
+        this.audio.playCollect();
         break;
       case 'shieldShard':
         this.player.addShieldShard();
+        if (this.player.activeShield) {
+          this.audio.playShieldActivate();
+        } else {
+          this.audio.playCollect();
+        }
         break;
       case 'slowdownOrb': {
         const extra = (this.player.activeUpgrades.find(u => u.id === 'slowdown') || {}).level || 0;
         this.slowdownTimer += 3 + extra * 1.2;
+        this.audio.playCollect();
         break;
       }
     }
@@ -204,10 +228,12 @@ class Game {
       case 'success':
         this.player.applyTurn(result.newDirection, result.turnPoint);
         this.turnsCompleted++;
-        this._flash('255,255,255', 0.55, 0.4);
+        this.renderer.triggerTurnLean(direction);
+        this.audio.playTurn();
         break;
       case 'fail':
         this._flash('255,0,0', 0.85, 0.55);
+        this.audio.playHit();
         this._triggerGameOver('WRONG TURN!');
         break;
       default:
@@ -227,6 +253,8 @@ class Game {
 
   _triggerGameOver(reason) {
     this.state = 'gameOver';
+    this.audio.stopEngine();
+    this.audio.playGameOver();
 
     if (this.score > this.personalBest) {
       this.personalBest = this.score;

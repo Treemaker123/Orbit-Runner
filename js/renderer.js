@@ -2,20 +2,25 @@ var TRACK_WIDTH = 240;
 var LANE_WIDTH  = 80;
 
 const TRACK_HALF_W = TRACK_WIDTH * 0.5;
-const CAMERA_BACK_DISTANCE = 120;
-const CAMERA_HEIGHT = 7;
+const CAMERA_BACK_DISTANCE = 55;
+const CAMERA_HEIGHT = 100;
 const CAMERA_FORWARD_OFFSET = 560;
 
-const HORIZON_FRAC = 0.40;
-const GROUND_FRAC = 0.96;
+const HORIZON_FRAC = 0.50;
+const GROUND_FRAC = 0.97;
 const PROJECTION_FOCAL = 420;
 // Smaller values increase near-field perspective exaggeration.
-const PROJECTION_NEAR = 90;
+const PROJECTION_NEAR = 70;
 // Cull points very close to camera to avoid unstable giant projections.
-const NEAR_CLIP = 20;
+const NEAR_CLIP = 15;
 const MAX_DRAW_DIST = 3400;
 const STRIP_LEN = 120;
-const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.92;
+const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.86;
+
+// Max canvas roll angle (radians) applied during a turn lean.
+const MAX_LEAN_ANGLE = 0.22;
+// Duration in seconds of the lean animation.
+const LEAN_DURATION = 1.0;
 
 class Renderer {
   constructor(canvas) {
@@ -23,8 +28,18 @@ class Renderer {
     this.ctx = canvas.getContext('2d');
     this.stars = [];
     this._time = 0;
+    this._leanTimer = 0;   // counts down from LEAN_DURATION to 0
+    this._leanDir = 1;     // +1 lean right, -1 lean left
+    this._lastFrameTime = 0;
     this._generateStars();
     this.resize();
+  }
+
+  // Called by Game when a successful turn occurs.
+  triggerTurnLean(dir) {
+    this._leanTimer = LEAN_DURATION;
+    // For a left turn the camera banks to the left (negative angle on canvas).
+    this._leanDir = dir === 'left' ? -1 : 1;
   }
 
   _generateStars() {
@@ -90,9 +105,33 @@ class Renderer {
     const W = canvas.width;
     const H = canvas.height;
 
+    // Compute frame delta for lean animation (cap to 100 ms to avoid jumps).
+    const now = performance.now();
+    const frameDt = this._lastFrameTime > 0
+      ? Math.min((now - this._lastFrameTime) / 1000, 0.1)
+      : 0.016;
+    this._lastFrameTime = now;
+
     this._time += 0.016;
 
+    if (this._leanTimer > 0) {
+      this._leanTimer = Math.max(0, this._leanTimer - frameDt);
+    }
+
     ctx.clearRect(0, 0, W, H);
+
+    // Lean angle: sine easing so motion starts and ends smoothly (peaks mid-animation).
+    const leanAngle = Math.sin(this._leanTimer / LEAN_DURATION * Math.PI) * MAX_LEAN_ANGLE * this._leanDir;
+
+    const applyLean = Math.abs(leanAngle) > 0.001;
+
+    if (applyLean) {
+      ctx.save();
+      ctx.translate(W * 0.5, H * 0.5);
+      ctx.rotate(leanAngle);
+      ctx.translate(-W * 0.5, -H * 0.5);
+    }
+
     this.drawBackground(ctx, W, H);
 
     const inGame = gameState.state === 'running' || gameState.state === 'paused';
@@ -111,7 +150,13 @@ class Renderer {
       }
 
       this.drawPlayer(ctx, gameState.player, camera, W, H);
+    }
 
+    if (applyLean) {
+      ctx.restore();
+    }
+
+    if (inGame && gameState.player && gameState.track) {
       this.drawHUD(
         ctx,
         W,
@@ -392,16 +437,49 @@ class Renderer {
   }
 
   _drawEnergyCore(ctx, proj, pulse) {
-    const r = 11 * pulse * proj.scale * 1.4;
-    if (r < 1) return;
+    const sz = 11 * pulse * proj.scale * 1.4;
+    if (sz < 1) return;
     const x = proj.sx, y = proj.sy;
 
     ctx.shadowColor = '#ffd700';
     ctx.shadowBlur = 22 * pulse * proj.scale;
-    ctx.fillStyle = '#ffe066';
+
+    // Can body (rounded rectangle)
+    const bw = sz * 0.75;
+    const bh = sz * 1.7;
+    const bx = x - bw * 0.5;
+    const by = y - bh;
+    const rc = bw * 0.28;
+
+    ctx.fillStyle = '#ffdd00';
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.moveTo(bx + rc, by);
+    ctx.lineTo(bx + bw - rc, by);
+    ctx.arcTo(bx + bw, by, bx + bw, by + rc, rc);
+    ctx.lineTo(bx + bw, by + bh - rc);
+    ctx.arcTo(bx + bw, by + bh, bx + bw - rc, by + bh, rc);
+    ctx.lineTo(bx + rc, by + bh);
+    ctx.arcTo(bx, by + bh, bx, by + bh - rc, rc);
+    ctx.lineTo(bx, by + rc);
+    ctx.arcTo(bx, by, bx + rc, by, rc);
+    ctx.closePath();
     ctx.fill();
+
+    // Orange stripe across body
+    ctx.fillStyle = 'rgba(255,100,0,0.55)';
+    ctx.fillRect(bx, by + bh * 0.32, bw, bh * 0.22);
+
+    // Nozzle cap on top
+    const nw = bw * 0.48;
+    const nh = sz * 0.38;
+    ctx.fillStyle = '#ff8800';
+    ctx.fillRect(x - nw * 0.5, by - nh, nw, nh + 2);
+
+    // Nozzle tip
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillRect(x - nw * 0.25, by - nh - sz * 0.18, nw * 0.5, sz * 0.18);
+
+    ctx.shadowBlur = 0;
   }
 
   _drawShieldShard(ctx, proj, pulse) {
@@ -410,17 +488,31 @@ class Renderer {
     const x = proj.sx, y = proj.sy;
 
     ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur = 14 * pulse * proj.scale;
-    ctx.fillStyle = 'rgba(0,255,255,0.8)';
+    ctx.shadowBlur = 16 * pulse * proj.scale;
+
+    const w = sz * 1.3;
+    const h = sz * 1.65;
+    const top = y - h * 0.55;
+    const bot = y + h * 0.45;
+
+    // Shield outline path: flat top with rounded shoulders, pointed bottom
+    ctx.fillStyle = 'rgba(0,210,255,0.88)';
     ctx.beginPath();
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-      const px = x + Math.cos(a) * sz;
-      const py = y + Math.sin(a) * sz;
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-    }
+    ctx.moveTo(x, top);                       // top center
+    ctx.lineTo(x + w * 0.5, top + h * 0.12); // top-right shoulder
+    ctx.lineTo(x + w * 0.5, top + h * 0.5);  // right mid
+    ctx.lineTo(x, bot);                       // bottom point
+    ctx.lineTo(x - w * 0.5, top + h * 0.5);  // left mid
+    ctx.lineTo(x - w * 0.5, top + h * 0.12); // top-left shoulder
     ctx.closePath();
     ctx.fill();
+
+    // Inner highlight
+    ctx.strokeStyle = 'rgba(180,255,255,0.55)';
+    ctx.lineWidth = Math.max(1, sz * 0.13);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
   }
 
   _drawSlowdownOrb(ctx, proj, pulse) {
@@ -526,32 +618,55 @@ class Renderer {
 
     if (player) {
       ctx.save();
-      const BX = W - 168, BY = 10;
+      const BX = W - 178, BY = 10;
+      const BOX_W2 = 168;
+      const BOX_H2 = 70;
       ctx.fillStyle = 'rgba(0,0,20,0.72)';
       ctx.strokeStyle = '#00d4ff';
       ctx.lineWidth = 1;
-      ctx.fillRect(BX, BY, 158, 62);
-      ctx.strokeRect(BX, BY, 158, 62);
+      ctx.fillRect(BX, BY, BOX_W2, BOX_H2);
+      ctx.strokeRect(BX, BY, BOX_W2, BOX_H2);
 
       ctx.fillStyle = '#00ffff';
       ctx.font = '12px monospace';
       ctx.textAlign = 'left';
       ctx.fillText('SHIELD SHARDS', BX + 8, BY + 20);
 
+      // Shard count as number
+      const shardCount = player.activeShield ? 3 : player.shieldShards;
+      ctx.font = 'bold 13px monospace';
+      ctx.fillStyle = shardCount > 0 ? '#00ffff' : '#334455';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${shardCount} / 3`, BX + BOX_W2 - 8, BY + 20);
+      ctx.textAlign = 'left';
+
+      // Draw three shield icons
       for (let i = 0; i < 3; i++) {
-        const sx = BX + 10 + i * 30;
-        const sy = BY + 40;
+        const sx = BX + 14 + i * 36;
+        const sy = BY + 50;
         const filled = i < player.shieldShards || player.activeShield;
-        ctx.fillStyle = filled ? '#00ffff' : '#1a2233';
+        const icolor = filled ? 'rgba(0,210,255,0.92)' : 'rgba(30,55,80,0.8)';
+        const strokeC = filled ? 'rgba(160,255,255,0.6)' : 'rgba(60,100,130,0.5)';
+        const sz2 = 11;
+        const w2 = sz2 * 1.15;
+        const h2 = sz2 * 1.45;
+        const top2 = sy - h2 * 0.55;
+        const bot2 = sy + h2 * 0.45;
+
+        ctx.fillStyle = icolor;
         ctx.beginPath();
-        for (let j = 0; j < 5; j++) {
-          const a = (j / 5) * Math.PI * 2 - Math.PI / 2;
-          const px = sx + Math.cos(a) * 11;
-          const py = sy + Math.sin(a) * 11;
-          if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
+        ctx.moveTo(sx, top2);
+        ctx.lineTo(sx + w2 * 0.5, top2 + h2 * 0.12);
+        ctx.lineTo(sx + w2 * 0.5, top2 + h2 * 0.5);
+        ctx.lineTo(sx, bot2);
+        ctx.lineTo(sx - w2 * 0.5, top2 + h2 * 0.5);
+        ctx.lineTo(sx - w2 * 0.5, top2 + h2 * 0.12);
         ctx.closePath();
         ctx.fill();
+
+        ctx.strokeStyle = strokeC;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
       ctx.restore();
     }
