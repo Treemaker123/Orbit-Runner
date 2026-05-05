@@ -120,11 +120,8 @@ class Renderer {
 
     ctx.clearRect(0, 0, W, H);
 
-    // Compute lean angle: ease in/out via sine so motion starts and ends smoothly.
-    const leanFrac = Math.sin((1 - this._leanTimer / LEAN_DURATION) * Math.PI);
-    // leanFrac peaks at 1.0 halfway through and returns to 0 at the end.
-    const rawLean = Math.sin(this._leanTimer / LEAN_DURATION * Math.PI);
-    const leanAngle = rawLean * MAX_LEAN_ANGLE * this._leanDir;
+    // Lean angle: sine easing so motion starts and ends smoothly (peaks mid-animation).
+    const leanAngle = Math.sin(this._leanTimer / LEAN_DURATION * Math.PI) * MAX_LEAN_ANGLE * this._leanDir;
 
     const applyLean = Math.abs(leanAngle) > 0.001;
 

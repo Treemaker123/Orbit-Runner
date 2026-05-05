@@ -118,11 +118,16 @@ class Game {
     this._wasJumping = false;
 
     this.state = 'running';
+    this.ui.showHUD();
+  }
+
+  _revive() {
     this.player.health = 1;
     this.player.activeShield = true;
     this.player.shieldTimer = 4;
     this.state = 'running';
     this.audio.startEngine();
+    this._wasJumping = false;
     this.ui.showHUD();
     this._flash('255,255,255', 0.4, 0.5);
   }
