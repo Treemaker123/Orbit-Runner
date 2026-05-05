@@ -226,9 +226,12 @@ class Game {
     const result = this.track.attemptTurn(direction, this.player);
     switch (result.result) {
       case 'success':
+        this.renderer.triggerTurnSnap(
+          { x: this.player.direction.x, z: this.player.direction.z },
+          result.newDirection
+        );
         this.player.applyTurn(result.newDirection, result.turnPoint);
         this.turnsCompleted++;
-        this.renderer.triggerTurnLean(direction);
         this.audio.playTurn();
         break;
       case 'fail':

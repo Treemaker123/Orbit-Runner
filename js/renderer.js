@@ -1,26 +1,24 @@
-var TRACK_WIDTH = 240;
-var LANE_WIDTH  = 80;
+var TRACK_WIDTH = 360;
+var LANE_WIDTH  = 120;
 
 const TRACK_HALF_W = TRACK_WIDTH * 0.5;
-const CAMERA_BACK_DISTANCE = 180;
-const CAMERA_HEIGHT = 100;
-const CAMERA_FORWARD_OFFSET = 560;
+const CAMERA_BACK_DISTANCE = 200;
+const CAMERA_HEIGHT = 32;
+const CAMERA_FORWARD_OFFSET = 480;
 
-const HORIZON_FRAC = 0.48;
+const HORIZON_FRAC = 0.32;
 const GROUND_FRAC = 0.97;
-const PROJECTION_FOCAL = 420;
+const PROJECTION_FOCAL = 460;
 // Smaller values increase near-field perspective exaggeration.
-const PROJECTION_NEAR = 70;
+const PROJECTION_NEAR = 55;
 // Cull points very close to camera to avoid unstable giant projections.
 const NEAR_CLIP = 15;
 const MAX_DRAW_DIST = 3400;
 const STRIP_LEN = 120;
-const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.86;
+const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.90;
 
-// Max canvas roll angle (radians) applied during a turn lean.
-const MAX_LEAN_ANGLE = 0.22;
-// Duration in seconds of the lean animation.
-const LEAN_DURATION = 1.0;
+// Duration in seconds of the smooth camera direction snap after a turn.
+const TURN_SNAP_DURATION = 0.13;
 
 class Renderer {
   constructor(canvas) {
@@ -28,18 +26,21 @@ class Renderer {
     this.ctx = canvas.getContext('2d');
     this.stars = [];
     this._time = 0;
-    this._leanTimer = 0;   // counts down from LEAN_DURATION to 0
-    this._leanDir = 1;     // +1 lean right, -1 lean left
+    this._turnSnapTimer = 0;       // counts down from TURN_SNAP_DURATION to 0
+    this._turnOldDir = { x: 0, z: 1 };
+    this._turnNewDir = { x: 0, z: 1 };
     this._lastFrameTime = 0;
     this._generateStars();
     this.resize();
   }
 
-  // Called by Game when a successful turn occurs.
-  triggerTurnLean(dir) {
-    this._leanTimer = LEAN_DURATION;
-    // For a left turn the camera banks to the left (negative angle on canvas).
-    this._leanDir = dir === 'left' ? -1 : 1;
+  // Called by Game when a successful turn occurs.  oldDir and newDir are
+  // unit direction vectors; the camera smoothly rotates between them over
+  // TURN_SNAP_DURATION seconds so the turn feels like a continuous motion.
+  triggerTurnSnap(oldDir, newDir) {
+    this._turnSnapTimer = TURN_SNAP_DURATION;
+    this._turnOldDir = { x: oldDir.x, z: oldDir.z };
+    this._turnNewDir = { x: newDir.x, z: newDir.z };
   }
 
   _generateStars() {
@@ -59,7 +60,21 @@ class Renderer {
   }
 
   _cameraFromPlayer(player) {
-    const dir = player.direction;
+    // During a turn snap, smoothly rotate the camera direction from the old
+    // heading to the new one over TURN_SNAP_DURATION seconds.
+    let dir;
+    if (this._turnSnapTimer > 0) {
+      const elapsed = TURN_SNAP_DURATION - this._turnSnapTimer;
+      const raw = elapsed / TURN_SNAP_DURATION; // 0 = just turned, 1 = done
+      const ease = raw * raw * (3 - 2 * raw); // smoothstep
+      const ix = this._turnOldDir.x + (this._turnNewDir.x - this._turnOldDir.x) * ease;
+      const iz = this._turnOldDir.z + (this._turnNewDir.z - this._turnOldDir.z) * ease;
+      const len = Math.sqrt(ix * ix + iz * iz);
+      dir = len > 0.001 ? { x: ix / len, z: iz / len } : player.direction;
+    } else {
+      dir = player.direction;
+    }
+
     const cameraPos = {
       x: player.position.x - dir.x * CAMERA_BACK_DISTANCE,
       y: CAMERA_HEIGHT,
@@ -105,7 +120,7 @@ class Renderer {
     const W = canvas.width;
     const H = canvas.height;
 
-    // Compute frame delta for lean animation (cap to 100 ms to avoid jumps).
+    // Compute frame delta for turn-snap animation (cap to 100 ms to avoid jumps).
     const now = performance.now();
     const frameDt = this._lastFrameTime > 0
       ? Math.min((now - this._lastFrameTime) / 1000, 0.1)
@@ -114,23 +129,11 @@ class Renderer {
 
     this._time += 0.016;
 
-    if (this._leanTimer > 0) {
-      this._leanTimer = Math.max(0, this._leanTimer - frameDt);
+    if (this._turnSnapTimer > 0) {
+      this._turnSnapTimer = Math.max(0, this._turnSnapTimer - frameDt);
     }
 
     ctx.clearRect(0, 0, W, H);
-
-    // Lean angle: sine easing so motion starts and ends smoothly (peaks mid-animation).
-    const leanAngle = Math.sin(this._leanTimer / LEAN_DURATION * Math.PI) * MAX_LEAN_ANGLE * this._leanDir;
-
-    const applyLean = Math.abs(leanAngle) > 0.001;
-
-    if (applyLean) {
-      ctx.save();
-      ctx.translate(W * 0.5, H * 0.5);
-      ctx.rotate(leanAngle);
-      ctx.translate(-W * 0.5, -H * 0.5);
-    }
 
     this.drawBackground(ctx, W, H);
 
@@ -150,10 +153,6 @@ class Renderer {
       }
 
       this.drawPlayer(ctx, gameState.player, camera, W, H);
-    }
-
-    if (applyLean) {
-      ctx.restore();
     }
 
     if (inGame && gameState.player && gameState.track) {
@@ -414,7 +413,7 @@ class Renderer {
 
   drawCollectibles(ctx, items, camera, W, H) {
     const sorted = items
-      .map(i => ({ i, p: this._projectWorld({ x: i.x, y: 30, z: i.z }, camera, W, H) }))
+      .map(i => ({ i, p: this._projectWorld({ x: i.x, y: 50, z: i.z }, camera, W, H) }))
       .filter(e => !!e.p)
       .sort((a, b) => b.p.d - a.p.d);
 
@@ -437,49 +436,42 @@ class Renderer {
   }
 
   _drawEnergyCore(ctx, proj, pulse) {
-    const sz = 11 * pulse * proj.scale * 1.4;
+    const sz = 15 * pulse * proj.scale * 1.4;
     if (sz < 1) return;
-    const x = proj.sx, y = proj.sy;
+    const x = proj.sx;
+    const y = proj.sy - sz * 0.2; // float slightly above the projected ground point
 
-    ctx.shadowColor = '#ffd700';
-    ctx.shadowBlur = 22 * pulse * proj.scale;
+    // Outer neon glow
+    ctx.shadowColor = '#ffe040';
+    ctx.shadowBlur = 30 * pulse * proj.scale;
 
-    // Can body (rounded rectangle)
-    const bw = sz * 0.75;
-    const bh = sz * 1.7;
-    const bx = x - bw * 0.5;
-    const by = y - bh;
-    const rc = bw * 0.28;
-
-    ctx.fillStyle = '#ffdd00';
+    // Outer translucent diamond
+    ctx.fillStyle = 'rgba(255,215,0,0.35)';
     ctx.beginPath();
-    ctx.moveTo(bx + rc, by);
-    ctx.lineTo(bx + bw - rc, by);
-    ctx.arcTo(bx + bw, by, bx + bw, by + rc, rc);
-    ctx.lineTo(bx + bw, by + bh - rc);
-    ctx.arcTo(bx + bw, by + bh, bx + bw - rc, by + bh, rc);
-    ctx.lineTo(bx + rc, by + bh);
-    ctx.arcTo(bx, by + bh, bx, by + bh - rc, rc);
-    ctx.lineTo(bx, by + rc);
-    ctx.arcTo(bx, by, bx + rc, by, rc);
+    ctx.moveTo(x,            y - sz * 1.15); // top
+    ctx.lineTo(x + sz * 0.72, y);            // right
+    ctx.lineTo(x,            y + sz * 1.15); // bottom
+    ctx.lineTo(x - sz * 0.72, y);            // left
     ctx.closePath();
     ctx.fill();
 
-    // Orange stripe across body
-    ctx.fillStyle = 'rgba(255,100,0,0.55)';
-    ctx.fillRect(bx, by + bh * 0.32, bw, bh * 0.22);
+    // Inner solid diamond
+    ctx.shadowBlur = 14 * pulse * proj.scale;
+    ctx.fillStyle = '#ffe040';
+    ctx.beginPath();
+    ctx.moveTo(x,            y - sz * 0.68);
+    ctx.lineTo(x + sz * 0.44, y);
+    ctx.lineTo(x,            y + sz * 0.68);
+    ctx.lineTo(x - sz * 0.44, y);
+    ctx.closePath();
+    ctx.fill();
 
-    // Nozzle cap on top
-    const nw = bw * 0.48;
-    const nh = sz * 0.38;
-    ctx.fillStyle = '#ff8800';
-    ctx.fillRect(x - nw * 0.5, by - nh, nw, nh + 2);
-
-    // Nozzle tip
-    ctx.fillStyle = '#ffcc00';
-    ctx.fillRect(x - nw * 0.25, by - nh - sz * 0.18, nw * 0.5, sz * 0.18);
-
+    // Bright center sparkle
     ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, sz * 0.16, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   _drawShieldShard(ctx, proj, pulse) {

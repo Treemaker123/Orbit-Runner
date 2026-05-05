@@ -1,5 +1,5 @@
-var TRACK_WIDTH    = 240;
-var LANE_WIDTH     = 80;
+var TRACK_WIDTH    = 360;
+var LANE_WIDTH     = 120;
 const JUMP_DURATION  = 0.48;
 const DUCK_DURATION  = 0.38;
 const SHIELD_SECS    = 10;
