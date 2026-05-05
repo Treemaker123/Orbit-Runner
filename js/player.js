@@ -212,22 +212,6 @@ class Player {
     this._syncWorldPosition();
   }
 
-  applyTurn(newDirection, turnPoint) {
-    const oldDir = { x: this.direction.x, z: this.direction.z };
-    const fromTurn = {
-      x: this.center.x - turnPoint.x,
-      z: this.center.z - turnPoint.z,
-    };
-    // Project displacement onto pre-turn forward direction to keep any forward
-    // overshoot when rotating direction at the corner.
-    const overshoot = Math.max(0, fromTurn.x * oldDir.x + fromTurn.z * oldDir.z);
-
-    this.center.x = turnPoint.x + newDirection.x * overshoot;
-    this.center.z = turnPoint.z + newDirection.z * overshoot;
-    this.direction = { x: newDirection.x, z: newDirection.z };
-    this._syncWorldPosition();
-  }
-
   switchLane(dir) {
     const next = Math.max(-1, Math.min(1, this.lane + dir));
     if (next === this.lane) return;

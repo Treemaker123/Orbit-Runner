@@ -17,10 +17,6 @@ const MAX_DRAW_DIST = 3400;
 const STRIP_LEN = 120;
 const PLAYER_SCREEN_Y_CLAMP_RATIO = 0.90;
 
-// Duration in seconds of the smooth camera direction snap after a turn.
-const TURN_SNAP_DURATION = 0.13;
-
-// Outer track edge line appearance.
 const EDGE_COLOR      = 'rgba(0,210,255,0.82)';
 const EDGE_LINE_WIDTH = 2;
 const EDGE_GLOW_COLOR = '#00d4ff';
@@ -32,22 +28,8 @@ class Renderer {
     this.ctx = canvas.getContext('2d');
     this.stars = [];
     this._time = 0;
-    this._turnSnapTimer = 0;       // counts down from TURN_SNAP_DURATION to 0
-    this._turnOldDir = { x: 0, z: 1 };
-    this._turnNewDir = { x: 0, z: 1 };
-    this._lastFrameTime = 0;
     this._generateStars();
     this.resize();
-  }
-
-  // Called by Game when a successful turn occurs.  oldDir and newDir are
-  // unit direction vectors; the camera pivots from oldDir to newDir over
-  // TURN_SNAP_DURATION seconds, so the 90-degree direction change feels
-  // like a quick, grounded snap rather than a sudden jump.
-  triggerTurnSnap(oldDir, newDir) {
-    this._turnSnapTimer = TURN_SNAP_DURATION;
-    this._turnOldDir = { x: oldDir.x, z: oldDir.z };
-    this._turnNewDir = { x: newDir.x, z: newDir.z };
   }
 
   _generateStars() {
@@ -67,20 +49,7 @@ class Renderer {
   }
 
   _cameraFromPlayer(player) {
-    // During a turn snap, smoothly rotate the camera direction from the old
-    // heading to the new one over TURN_SNAP_DURATION seconds.
-    let dir;
-    if (this._turnSnapTimer > 0) {
-      const elapsed = TURN_SNAP_DURATION - this._turnSnapTimer;
-      const raw = elapsed / TURN_SNAP_DURATION; // 0 = turn start, 1 = turn complete
-      const ease = raw * raw * (3 - 2 * raw); // smoothstep
-      const ix = this._turnOldDir.x + (this._turnNewDir.x - this._turnOldDir.x) * ease;
-      const iz = this._turnOldDir.z + (this._turnNewDir.z - this._turnOldDir.z) * ease;
-      const len = Math.sqrt(ix * ix + iz * iz);
-      dir = len > 0.001 ? { x: ix / len, z: iz / len } : player.direction;
-    } else {
-      dir = player.direction;
-    }
+    const dir = player.direction;
 
     const cameraPos = {
       x: player.position.x - dir.x * CAMERA_BACK_DISTANCE,
@@ -127,18 +96,7 @@ class Renderer {
     const W = canvas.width;
     const H = canvas.height;
 
-    // Compute frame delta for turn-snap animation (cap to 100 ms to avoid jumps).
-    const now = performance.now();
-    const frameDt = this._lastFrameTime > 0
-      ? Math.min((now - this._lastFrameTime) / 1000, 0.1)
-      : 0.016;
-    this._lastFrameTime = now;
-
     this._time += 0.016;
-
-    if (this._turnSnapTimer > 0) {
-      this._turnSnapTimer = Math.max(0, this._turnSnapTimer - frameDt);
-    }
 
     ctx.clearRect(0, 0, W, H);
 
@@ -222,30 +180,12 @@ class Renderer {
       const stripIndex = Math.floor(abs0 / STRIP_LEN);
       const color = stripIndex % 2 === 0 ? '#0a0a22' : '#06061a';
 
-      if (s0.segment !== s1.segment) {
-        // This strip straddles a corner – split it so each half stays within
-        // its own segment, then fill the outer-elbow gap between them.
-        const P   = s0.segment.end;
-        const p2  = { x: -s1.segment.direction.z, z: s1.segment.direction.x };
-
-        // Half that ends at the corner (uses s0's perp throughout)
-        const sMid   = { center: { x: P.x, z: P.z }, perp: s0.perp };
-        this._drawTrackQuad(ctx, s0, sMid, camera, W, H, color);
-
-        // The outer-elbow square that neither half covers
-        this._drawCornerFill(ctx, P, s0.perp, p2, camera, W, H, color);
-
-        // Half that starts at the corner (uses s1's perp throughout)
-        const sStart = { center: { x: P.x, z: P.z }, perp: p2 };
-        this._drawTrackQuad(ctx, sStart, s1, camera, W, H, color);
-      } else {
-        this._drawTrackQuad(ctx, s0, s1, camera, W, H, color);
-      }
+      this._drawTrackQuad(ctx, s0, s1, camera, W, H, color);
 
       relativeDistance -= STRIP_LEN;
     }
 
-    // Glowing edge lines with proper L-shaped elbows at every corner
+    // Glowing edge lines
     this._drawTrackEdge(ctx, track, playerDistance, camera, W, H);
 
     this._drawLaneDivider(ctx, track, playerDistance, camera, W, H, -LANE_WIDTH * 0.5);
@@ -276,34 +216,7 @@ class Renderer {
     ctx.fill();
   }
 
-  // Fills the outer-elbow square that opens up at a 90-degree corner.
-  // p1 = perp of the incoming segment, p2 = perp of the outgoing segment.
-  // The quad is: P → (P - p1*hw) → (P - p1*hw - p2*hw) → (P - p2*hw)
-  _drawCornerFill(ctx, P, p1, p2, camera, W, H, color) {
-    const hw = TRACK_HALF_W;
-    const ptP     = { x: P.x,                         y: 0, z: P.z };
-    const ptL1    = { x: P.x - p1.x * hw,             y: 0, z: P.z - p1.z * hw };
-    const ptElbow = { x: P.x - p1.x * hw - p2.x * hw, y: 0, z: P.z - p1.z * hw - p2.z * hw };
-    const ptL2    = { x: P.x - p2.x * hw,             y: 0, z: P.z - p2.z * hw };
-
-    const pP     = this._projectWorld(ptP,     camera, W, H);
-    const pL1    = this._projectWorld(ptL1,    camera, W, H);
-    const pElbow = this._projectWorld(ptElbow, camera, W, H);
-    const pL2    = this._projectWorld(ptL2,    camera, W, H);
-    if (!pP || !pL1 || !pElbow || !pL2) return;
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(pP.sx,     pP.sy);
-    ctx.lineTo(pL1.sx,    pL1.sy);
-    ctx.lineTo(pElbow.sx, pElbow.sy);
-    ctx.lineTo(pL2.sx,    pL2.sy);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // Draws both outer edge lines as glowing cyan paths with a proper L-shaped
-  // elbow inserted at every corner within view.
+  // Draws both outer edge lines as glowing cyan paths.
   _drawTrackEdge(ctx, track, playerDistance, camera, W, H) {
     const hw   = TRACK_HALF_W;
     const segs = track.segments;
@@ -338,7 +251,7 @@ class Renderer {
         };
         const ptStart = { x: cStart.x + perp.x * off, y: 0, z: cStart.z + perp.z * off };
 
-        // End point is always the segment's turn corner
+        // End point of this segment's visible portion
         const ptEnd = { x: seg.end.x + perp.x * off, y: 0, z: seg.end.z + perp.z * off };
 
         const pStart = this._projectWorld(ptStart, camera, W, H);
@@ -351,22 +264,6 @@ class Renderer {
         }
         if (pEnd && penDown) ctx.lineTo(pEnd.sx, pEnd.sy);
         if (!pEnd) penDown = false;
-
-        // Insert the corner elbow so the edge bends at a right angle instead
-        // of a diagonal.
-        if (i + 1 < segs.length && penDown) {
-          const seg2 = segs[i + 1];
-          if (seg2.startDistance <= playerDistance + MAX_DRAW_DIST) {
-            const p2      = { x: -seg2.direction.z, z: seg2.direction.x };
-            const ptElbow = {
-              x: seg.end.x + (perp.x + p2.x) * off,
-              y: 0,
-              z: seg.end.z + (perp.z + p2.z) * off,
-            };
-            const pElbow = this._projectWorld(ptElbow, camera, W, H);
-            if (pElbow) ctx.lineTo(pElbow.sx, pElbow.sy);
-          }
-        }
       }
 
       ctx.stroke();

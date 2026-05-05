@@ -13,20 +13,12 @@ const DAILY_TEMPLATES = [
     targets: [500, 1200, 2500],
     reward: 250,
   },
-  {
-    type: 'turns',
-    name: 'Turn Master',
-    desc: 'Complete {n} turns successfully',
-    targets: [3, 6, 12],
-    reward: 300,
-  },
 ];
 
 const GENERAL_DEFS = [
   { id: 'g_first',   name: 'First Flight',   desc: 'Complete your first run',                 type: 'runs',     target: 1,     reward: 500  },
   { id: 'g_cores',   name: 'Core Hoarder',   desc: 'Collect 100 energy cores total',          type: 'cores',    target: 100,   reward: 1000 },
   { id: 'g_dist',    name: 'Long Haul',      desc: 'Travel 5 000 m total',                    type: 'distance', target: 5000,  reward: 1500 },
-  { id: 'g_turns',   name: 'Turn Veteran',   desc: 'Complete 50 turns total',                 type: 'turns',    target: 50,    reward: 2000 },
   { id: 'g_speed',   name: 'Speed Demon',    desc: 'Reach maximum speed in a run',            type: 'maxSpeed', target: 1,     reward: 3000 },
   { id: 'g_rich',    name: 'Rich Pilot',     desc: 'Accumulate 10 000 ★ at once',            type: 'stars',    target: 10000, reward: 500  },
 ];
@@ -108,7 +100,6 @@ class Missions {
       let add = 0;
       if (m.type === 'cores')    add = stats.cores    || 0;
       if (m.type === 'distance') add = Math.floor(stats.distance || 0);
-      if (m.type === 'turns')    add = stats.turns    || 0;
       m.progress = Math.min(m.target, m.progress + add);
     }
     // General missions – accumulate forever
@@ -119,7 +110,6 @@ class Missions {
       if (def.type === 'runs')     add = 1;
       if (def.type === 'cores')    add = stats.cores    || 0;
       if (def.type === 'distance') add = Math.floor(stats.distance || 0);
-      if (def.type === 'turns')    add = stats.turns    || 0;
       if (def.type === 'maxSpeed' && stats.maxSpeedReached) add = 1;
       this.generalProgress[def.id] = Math.min(def.target, cur + add);
     }
