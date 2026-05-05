@@ -35,8 +35,9 @@ class Renderer {
   }
 
   // Called by Game when a successful turn occurs.  oldDir and newDir are
-  // unit direction vectors; the camera smoothly rotates between them over
-  // TURN_SNAP_DURATION seconds so the turn feels like a continuous motion.
+  // unit direction vectors; the camera pivots from oldDir to newDir over
+  // TURN_SNAP_DURATION seconds, so the 90-degree direction change feels
+  // like a quick, grounded snap rather than a sudden jump.
   triggerTurnSnap(oldDir, newDir) {
     this._turnSnapTimer = TURN_SNAP_DURATION;
     this._turnOldDir = { x: oldDir.x, z: oldDir.z };
@@ -65,7 +66,7 @@ class Renderer {
     let dir;
     if (this._turnSnapTimer > 0) {
       const elapsed = TURN_SNAP_DURATION - this._turnSnapTimer;
-      const raw = elapsed / TURN_SNAP_DURATION; // 0 = just turned, 1 = done
+      const raw = elapsed / TURN_SNAP_DURATION; // 0 = turn start, 1 = turn complete
       const ease = raw * raw * (3 - 2 * raw); // smoothstep
       const ix = this._turnOldDir.x + (this._turnNewDir.x - this._turnOldDir.x) * ease;
       const iz = this._turnOldDir.z + (this._turnNewDir.z - this._turnOldDir.z) * ease;
