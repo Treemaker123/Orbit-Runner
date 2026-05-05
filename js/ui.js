@@ -78,8 +78,6 @@ class UI {
           <div class="control-item"><span class="key">D / ►</span> Lane right</div>
           <div class="control-item"><span class="key">W / ▲</span> Jump</div>
           <div class="control-item"><span class="key">S / ▼</span> Duck</div>
-          <div class="control-item"><span class="key">Q</span> Turn left</div>
-          <div class="control-item"><span class="key">E</span> Turn right</div>
           <div class="control-item"><span class="key">P / Esc</span> Pause</div>
           <div class="control-item"><span class="key">1 2 3</span> Upgrades</div>
         </div>

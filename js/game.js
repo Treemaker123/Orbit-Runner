@@ -1,8 +1,6 @@
 const BASE_SPEED          = 220;
 const SPEED_INCREMENT     = 8;
 const MAX_SPEED           = 700;
-// How many seconds a player may wait at a corner before the run ends.
-const CORNER_WAIT_TIMEOUT = 0.9;
 
 class Game {
   constructor(canvas, economy, missions, upgrades) {
@@ -19,7 +17,6 @@ class Game {
     this.runTime = 0;
     this.distance = 0;
     this.coresCollected = 0;
-    this.turnsCompleted = 0;
     this.maxSpeedReached = false;
     this.slowdownTimer = 0;
 
@@ -47,8 +44,6 @@ class Game {
 
     window.addEventListener('keydown', e => {
       this.audio.resume();
-      if (e.code === 'KeyQ') this._handleTurn('left');
-      if (e.code === 'KeyE') this._handleTurn('right');
       if (e.code === 'KeyP' || e.code === 'Escape') this._togglePause();
     });
 
@@ -105,7 +100,6 @@ class Game {
     this.runTime = 0;
     this.distance = 0;
     this.coresCollected = 0;
-    this.turnsCompleted = 0;
     this.maxSpeedReached = false;
     this.slowdownTimer = 0;
     this.effects = [];
@@ -118,7 +112,6 @@ class Game {
 
     this.audio.startEngine();
     this._wasJumping = false;
-    this._cornerWaitTimer = 0;
 
     this.state = 'running';
     this.ui.showHUD();
@@ -131,7 +124,6 @@ class Game {
     this.state = 'running';
     this.audio.startEngine();
     this._wasJumping = false;
-    this._cornerWaitTimer = 0;
     this.ui.showHUD();
     this._flash('255,255,255', 0.4, 0.5);
   }
@@ -165,24 +157,6 @@ class Game {
     }
 
     this.track.update(this.distance);
-
-    // Clamp the player at the turn-corner so they never visually drift off the
-    // track.  If they spend too long at the corner without turning, game over.
-    const cornerState = this.track.getTurnState(this.player);
-    if (cornerState && cornerState.distance < 0) {
-      // Player has overshot the corner – snap back to the corner point.
-      this.player.center.x = cornerState.turnPoint.x;
-      this.player.center.z = cornerState.turnPoint.z;
-      this.player._syncWorldPosition();
-      this._cornerWaitTimer += dt;
-      if (this._cornerWaitTimer > CORNER_WAIT_TIMEOUT) {
-        this._flash('255,0,0', 0.85, 0.55);
-        this._triggerGameOver('MISSED TURN!');
-        return;
-      }
-    } else {
-      this._cornerWaitTimer = 0;
-    }
 
     this.obstacles.update(this.distance);
     this.obstacles.spawn(this.track, this.distance, this.speed);
@@ -236,30 +210,6 @@ class Game {
     }
   }
 
-  _handleTurn(direction) {
-    if (this.state !== 'running') return;
-
-    const result = this.track.attemptTurn(direction, this.player);
-    switch (result.result) {
-      case 'success':
-        this.renderer.triggerTurnSnap(
-          { x: this.player.direction.x, z: this.player.direction.z },
-          result.newDirection
-        );
-        this.player.applyTurn(result.newDirection, result.turnPoint);
-        this.turnsCompleted++;
-        this.audio.playTurn();
-        break;
-      case 'fail':
-        this._flash('255,0,0', 0.85, 0.55);
-        this.audio.playHit();
-        this._triggerGameOver('WRONG TURN!');
-        break;
-      default:
-        break;
-    }
-  }
-
   _togglePause() {
     if (this.state === 'running') {
       this.state = 'paused';
@@ -283,7 +233,6 @@ class Game {
     this.missions.updateRunStats({
       distance: this.distance,
       cores: this.coresCollected,
-      turns: this.turnsCompleted,
       maxSpeedReached: this.maxSpeedReached,
     });
     this.missions.updateStarsProgress(this.economy.getBalance());
@@ -319,7 +268,6 @@ class Game {
       stars: this.economy.getBalance(),
       speed: this.speed,
       distance: this.distance,
-      turnWarning: (this.state === 'running' || this.state === 'paused') ? this.track.getTurnWarning(this.player) : null,
       effects: this.effects,
       activeUpgrades: this.player.activeUpgrades,
     };
