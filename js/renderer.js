@@ -2,11 +2,11 @@ var TRACK_WIDTH = 240;
 var LANE_WIDTH  = 80;
 
 const TRACK_HALF_W = TRACK_WIDTH * 0.5;
-const CAMERA_BACK_DISTANCE = 55;
+const CAMERA_BACK_DISTANCE = 180;
 const CAMERA_HEIGHT = 100;
 const CAMERA_FORWARD_OFFSET = 560;
 
-const HORIZON_FRAC = 0.50;
+const HORIZON_FRAC = 0.48;
 const GROUND_FRAC = 0.97;
 const PROJECTION_FOCAL = 420;
 // Smaller values increase near-field perspective exaggeration.
@@ -529,19 +529,22 @@ class Renderer {
   }
 
   drawPlayer(ctx, player, camera, W, H) {
-    const playerPoint = this._projectWorld({
+    // Project the ground-level position (y=0) so the clamp gives a stable base Y.
+    const basePoint = this._projectWorld({
       x: player.position.x,
-      y: player.getJumpHeight(),
+      y: 0,
       z: player.position.z,
     }, camera, W, H);
-    if (!playerPoint) return;
-    const playerScreenY = Math.min(playerPoint.sy, H * PLAYER_SCREEN_Y_CLAMP_RATIO);
+    if (!basePoint) return;
+    const playerScreenY = Math.min(basePoint.sy, H * PLAYER_SCREEN_Y_CLAMP_RATIO);
+    // Apply jump height in screen space after clamping so it is always visible.
+    const jumpOffset = player.getJumpHeight() * basePoint.scale;
 
-    const scale = playerPoint.scale * 1.3;
+    const scale = basePoint.scale * 0.7;
     const scaleY = player.ducking ? scale * 0.55 : scale;
 
     ctx.save();
-    ctx.translate(playerPoint.sx, playerScreenY - 10 * scaleY);
+    ctx.translate(basePoint.sx, playerScreenY - jumpOffset - 10 * scaleY);
     ctx.scale(scale, scaleY);
 
     const H2 = 18, H1 = -18;
