@@ -49,9 +49,13 @@ class Player {
   }
 
   initControls() {
+    const GAME_KEYS = new Set([
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space',
+    ]);
     window.addEventListener('keydown', e => {
       this._keys[e.code] = true;
       this._keys[e.key] = true;
+      if (GAME_KEYS.has(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', e => {
       this._keys[e.code] = false;
@@ -162,7 +166,8 @@ class Player {
 
     const pressedJump =
       (this._keys['KeyW'] && !this._prevKeys['KeyW']) ||
-      (this._keys['ArrowUp'] && !this._prevKeys['ArrowUp']);
+      (this._keys['ArrowUp'] && !this._prevKeys['ArrowUp']) ||
+      (this._keys['Space'] && !this._prevKeys['Space']);
     if ((pressedJump || this.touchUp) && !this.jumping && !this.ducking) this.jump();
 
     const pressedDuck =
